@@ -1,0 +1,11 @@
+{
+  "name": "audio-browser",
+  "version": "1.0.0",
+  "description": "Simple local audio file browser with auto-play",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5"
+  }
+}

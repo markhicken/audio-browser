@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Browser</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header with title + breadcrumbs -->
+  <div id="header">
+    <span id="app-title">Audio Browser</span>
+    <div id="breadcrumbs"></div>
+  </div>
+
+  <!-- Warning banner (shown when ffmpeg is missing) -->
+  <div id="warning"></div>
+
+  <!-- File list -->
+  <div id="filelist" tabindex="0"></div>
+  <div id="empty">No audio files in this folder</div>
+
+  <!-- Status bar -->
+  <div id="statusbar">
+    <span id="file-count"></span>
+    <span id="statusbar-spacer"></span>
+    <button id="btn-normalize" title="Normalize audio levels for all files in this folder">Normalize Levels</button>
+    <button id="btn-convert-wav" title="Convert all files to WAV format">Convert to WAV</button>
+  </div>
+
+  <!-- Transport bar -->
+  <div id="transport">
+    <button id="play-btn" title="Play/Pause (Space)"><svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,0 12,6 2,12" fill="currentColor"/></svg></button>
+    <span id="transport-name">No file selected</span>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <span id="transport-time">0:00 / 0:00</span>
+    <label id="autoplay-toggle" title="Auto-play next track when current ends">
+      <input type="checkbox" id="autoplay-cb"> Auto-next
+    </label>
+  </div>
+
+  <!-- Keyboard hints -->
+  <div id="hints">&#8593;&#8595; Navigate &nbsp; Enter Open folder &nbsp; Backspace Parent &nbsp; Space Play/Pause &nbsp; Esc Stop &nbsp; Del Recycle</div>
+
+  <!-- Normalization progress modal -->
+  <div id="norm-overlay">
+    <div id="norm-dialog">
+      <div id="norm-title">Normalizing Audio Levels</div>
+      <div id="norm-phase"></div>
+      <div id="norm-file"></div>
+      <div id="norm-progress-wrap"><div id="norm-progress-bar"></div></div>
+      <div id="norm-count"></div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div id="context-menu">
+    <div class="ctx-item" data-action="copypath">Copy Path</div>
+    <div class="ctx-item" data-action="delete">Delete</div>
+  </div>
+
+  <!-- Audio element -->
+  <audio id="audio" preload="none"></audio>
+
+  <!-- App entry point -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
