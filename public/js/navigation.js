@@ -1,6 +1,9 @@
 import { state, dom } from './state.js';
-import { fmtTime, escPath, resolvePath } from './utils.js';
-import { renderList, scrollToSelected } from './filelist.js';
+import { escPath, resolvePath } from './utils.js';
+import { renderList, scrollToSelected, prefetchVisiblePages, syncVisibleWindowToScroll, rerenderVisibleWindow } from './filelist.js';
+
+const ROW_HEIGHT = 32;
+let resizeReloadTimer = null;
 
 // Get path relative to home, using / separators
 function relativeToHome(absPath) {
@@ -30,17 +33,113 @@ export function renderBreadcrumbs() {
   dom.breadcrumbs.innerHTML = html;
 }
 
-export async function loadDirectory(dir) {
+function getViewportPageSize() {
+  const visibleHeight = dom.filelist.clientHeight || window.innerHeight || ROW_HEIGHT;
+  return Math.max(1, Math.ceil(visibleHeight / ROW_HEIGHT));
+}
+
+function syncPageSize() {
+  const nextPageSize = getViewportPageSize();
+  const changed = state.pageSize !== nextPageSize;
+  state.pageSize = nextPageSize;
+  return changed;
+}
+
+function resetDirectoryState() {
+  state.entries = [];
+  state.selectedIndex = -1;
+  state.totalEntries = 0;
+  state.hasMoreEntries = false;
+  state.entryCounts = { files: 0, folders: 0 };
+  state.loadedPages = new Set();
+  state.loadingPages = new Set();
+  state.visiblePageStart = 1;
+  state.visiblePageEnd = 1;
+  clearTimeout(state.scrollPrefetchTimer);
+  state.scrollPrefetchTimer = null;
+}
+
+function mergePage(data) {
+  if (state.entries.length !== data.totalEntries) {
+    state.entries = new Array(data.totalEntries);
+  }
+
+  for (let i = 0; i < data.entries.length; i++) {
+    state.entries[data.offset + i] = data.entries[i];
+  }
+
+  state.totalEntries = data.totalEntries;
+  state.hasMoreEntries = data.hasMore;
+  state.entryCounts = data.counts || state.entryCounts;
+}
+
+export async function loadDirectoryPage(page) {
+  if (!state.currentDir || state.loadedPages.has(page) || state.loadingPages.has(page)) return;
+
+  state.loadingPages.add(page);
+  rerenderVisibleWindow();
+
+  const token = state.listRequestToken;
+
   try {
-    const res = await fetch('/api/list?dir=' + encodeURIComponent(dir));
+    const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
+      '&page=' + page +
+      '&pageSize=' + state.pageSize);
     if (!res.ok) {
-      loadDirectory(state.homeDir);
+      state.loadingPages.delete(page);
+      rerenderVisibleWindow();
       return;
     }
+
     const data = await res.json();
+    if (token !== state.listRequestToken || data.path !== state.currentDir) {
+      state.loadingPages.delete(page);
+      return;
+    }
+
+    mergePage(data);
+    state.loadedPages.add(page);
+    state.loadingPages.delete(page);
+    rerenderVisibleWindow();
+  } catch {
+    state.loadingPages.delete(page);
+    rerenderVisibleWindow();
+  }
+}
+
+export async function loadDirectory(dir) {
+  syncPageSize();
+
+  const nextDir = dir || state.homeDir;
+  const token = state.listRequestToken + 1;
+  state.listRequestToken = token;
+  state.isLoadingDirectory = true;
+  state.currentDir = nextDir;
+  resetDirectoryState();
+  renderBreadcrumbs();
+  renderList();
+
+  try {
+    const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + '&page=1&pageSize=' + state.pageSize);
+    if (!res.ok) {
+      if (nextDir !== state.homeDir) {
+        loadDirectory(state.homeDir);
+      } else {
+        state.isLoadingDirectory = false;
+        renderList();
+      }
+      return;
+    }
+
+    const data = await res.json();
+    if (token !== state.listRequestToken) return;
+
     state.currentDir = data.path;
-    state.entries = data.entries;
-    state.selectedIndex = state.entries.length > 0 ? 0 : -1;
+    mergePage(data);
+    state.loadedPages.add(1);
+    state.loadingPages.clear();
+    state.selectedIndex = data.totalEntries > 0 ? 0 : -1;
+    state.isLoadingDirectory = false;
 
     const rel = relativeToHome(state.currentDir);
     localStorage.setItem('audioBrowser_lastDir', rel);
@@ -49,33 +148,26 @@ export async function loadDirectory(dir) {
     renderList();
     scrollToSelected();
     dom.filelist.focus();
-    fetchDurations();
+
+    prefetchVisiblePages();
+    if (data.hasMore) loadDirectoryPage(2);
   } catch (err) {
+    state.isLoadingDirectory = false;
     alert('Failed to load directory: ' + err.message);
   }
 }
 
-async function fetchDurations() {
-  const dir = state.currentDir;
-  const audioEntries = state.entries.filter(e => e.type === 'file');
-  for (const entry of audioEntries) {
-    if (state.currentDir !== dir) return;
-    try {
-      const sep = dir.includes('\\') ? '\\' : '/';
-      const res = await fetch('/api/duration?file=' + encodeURIComponent(dir + sep + entry.name));
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.duration != null) {
-        entry.duration = data.duration;
-        const el = dom.filelist.querySelector(`.row-duration[data-file="${CSS.escape(entry.name)}"]`);
-        if (el) el.textContent = fmtTime(data.duration);
-      }
-    } catch {}
-  }
+export async function ensureEntryLoaded(index) {
+  if (index < 0 || index >= state.entries.length) return null;
+  if (state.entries[index]) return state.entries[index];
+
+  const page = Math.floor(index / state.pageSize) + 1;
+  await loadDirectoryPage(page);
+  return state.entries[index] || null;
 }
 
-export function openSelected() {
-  const entry = state.entries[state.selectedIndex];
+export async function openSelected() {
+  const entry = await ensureEntryLoaded(state.selectedIndex);
   if (!entry || entry.type !== 'folder') return;
 
   if (entry.name === '..') {
@@ -93,5 +185,24 @@ export function initBreadcrumbEvents() {
   dom.breadcrumbs.addEventListener('click', (e) => {
     const span = e.target.closest('span[data-path]');
     if (span) loadDirectory(hashToAbsolute(span.dataset.path));
+  });
+
+  dom.filelist.addEventListener('scroll', () => {
+    syncVisibleWindowToScroll();
+
+    clearTimeout(state.scrollPrefetchTimer);
+    state.scrollPrefetchTimer = setTimeout(() => {
+      state.scrollPrefetchTimer = null;
+      prefetchVisiblePages();
+    }, 500);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeReloadTimer);
+    resizeReloadTimer = setTimeout(() => {
+      resizeReloadTimer = null;
+      if (!state.currentDir) return;
+      if (syncPageSize()) loadDirectory(state.currentDir);
+    }, 150);
   });
 }

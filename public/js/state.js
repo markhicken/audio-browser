@@ -7,7 +7,18 @@ export const state = {
   isAudioPlaying: false,
   playTimeout: null,
   ffmpegAvailable: false,
-  homeDir: ''
+  homeDir: '',
+  pageSize: 200,
+  totalEntries: 0,
+  hasMoreEntries: false,
+  entryCounts: { files: 0, folders: 0 },
+  loadedPages: new Set(),
+  loadingPages: new Set(),
+  visiblePageStart: 1,
+  visiblePageEnd: 1,
+  listRequestToken: 0,
+  scrollPrefetchTimer: null,
+  isLoadingDirectory: false
 };
 
 // DOM element references

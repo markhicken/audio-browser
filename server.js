@@ -43,10 +43,57 @@ app.get('/api/home', (req, res) => {
   res.json({ home: os.homedir(), ffmpeg: ffmpegAvailable });
 });
 
+function probeDuration(filePath) {
+  return new Promise((resolve) => {
+    if (!ffmpegAvailable) {
+      resolve(null);
+      return;
+    }
+
+    const probe = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_format',
+      filePath
+    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+
+    let out = '';
+    probe.stdout.on('data', (d) => { out += d; });
+    probe.on('error', () => resolve(null));
+    probe.on('close', () => {
+      try {
+        const info = JSON.parse(out);
+        resolve(parseFloat(info.format.duration) || null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex++;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
 // List directory contents
 app.get('/api/list', async (req, res) => {
   const dir = req.query.dir;
   if (!dir) return res.status(400).json({ error: 'dir parameter required' });
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const requestedPageSize = parseInt(req.query.pageSize, 10) || 200;
+  const pageSize = Math.min(Math.max(requestedPageSize, 25), 500);
 
   const resolved = path.resolve(dir);
 
@@ -72,12 +119,7 @@ app.get('/api/list', async (req, res) => {
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
       if (AUDIO_EXTS.has(ext)) {
-        let size = 0;
-        try {
-          const stat = await fs.promises.stat(path.join(resolved, entry.name));
-          size = stat.size;
-        } catch {}
-        files.push({ name: entry.name, type: 'file', ext: ext.slice(1), size });
+        files.push({ name: entry.name, type: 'file', ext: ext.slice(1) });
       }
     }
   }
@@ -86,13 +128,42 @@ app.get('/api/list', async (req, res) => {
   folders.sort(cmp);
   files.sort(cmp);
 
-  // Add parent directory entry unless at home
   const entries = [];
   if (resolved !== HOME) {
     entries.push({ name: '..', type: 'folder' });
   }
+  entries.push(...folders, ...files);
 
-  res.json({ path: resolved, entries: entries.concat(folders, files) });
+  const totalEntries = entries.length;
+  const start = Math.min((page - 1) * pageSize, totalEntries);
+  const pageEntries = entries.slice(start, start + pageSize);
+
+  const hydratedEntries = await mapWithConcurrency(pageEntries, 8, async (entry) => {
+    if (entry.type !== 'file') return entry;
+
+    let size = 0;
+    try {
+      const stat = await fs.promises.stat(path.join(resolved, entry.name));
+      size = stat.size;
+    } catch {}
+
+    const duration = await probeDuration(path.join(resolved, entry.name));
+    return { ...entry, size, duration };
+  });
+
+  res.json({
+    path: resolved,
+    entries: hydratedEntries,
+    page,
+    pageSize,
+    offset: start,
+    totalEntries,
+    hasMore: start + pageEntries.length < totalEntries,
+    counts: {
+      files: files.length,
+      folders: folders.length
+    }
+  });
 });
 
 // Serve or transcode audio file
@@ -156,23 +227,7 @@ app.get('/api/duration', (req, res) => {
   if (!resolved.startsWith(HOME)) return res.status(403).json({ error: 'Access restricted to home folder' });
   if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' });
 
-  const probe = spawn('ffprobe', [
-    '-v', 'quiet',
-    '-print_format', 'json',
-    '-show_format',
-    resolved
-  ], { stdio: ['ignore', 'pipe', 'ignore'] });
-
-  let out = '';
-  probe.stdout.on('data', (d) => { out += d; });
-  probe.on('close', (code) => {
-    try {
-      const info = JSON.parse(out);
-      res.json({ duration: parseFloat(info.format.duration) || null });
-    } catch {
-      res.json({ duration: null });
-    }
-  });
+  probeDuration(resolved).then(duration => res.json({ duration }));
 });
 
 // Delete file (send to recycle bin)

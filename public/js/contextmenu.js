@@ -1,5 +1,5 @@
 import { state, dom } from './state.js';
-import { deleteSelected } from './filelist.js';
+import { deleteSelected, focusRow } from './filelist.js';
 
 const menu = document.getElementById('context-menu');
 let contextIndex = -1;
@@ -19,10 +19,7 @@ function show(x, y, index) {
   if (!entry || entry.type === 'folder') return;
 
   contextIndex = index;
-  state.selectedIndex = index;
-
-  // Import renderList dynamically to avoid circular dep
-  import('./filelist.js').then(m => m.renderList());
+  focusRow(index);
 
   menu.classList.add('visible');
 

@@ -101,7 +101,7 @@ async function pollJobStatus(jobType) {
 }
 
 async function startBatchJob(endpoint, type, confirmMsg) {
-  const fileCount = state.entries.filter(e => e.type === 'file').length;
+  const fileCount = state.entryCounts.files;
   if (fileCount === 0) {
     alert('No audio files in this folder.');
     return;
@@ -132,7 +132,7 @@ async function startBatchJob(endpoint, type, confirmMsg) {
 
 // Normalize button
 btnNormalize.addEventListener('click', () => {
-  const count = state.entries.filter(e => e.type === 'file').length;
+  const count = state.entryCounts.files;
   startBatchJob('/api/normalize', 'normalize',
     `Normalize levels for ${count} file${count !== 1 ? 's' : ''} in this folder?\n\n` +
     `Originals will be backed up to a timestamped subfolder.\n\n` +
@@ -142,13 +142,8 @@ btnNormalize.addEventListener('click', () => {
 
 // Convert to WAV button
 btnConvertWav.addEventListener('click', () => {
-  const nonWav = state.entries.filter(e => e.type === 'file' && e.ext !== 'wav').length;
-  if (nonWav === 0) {
-    alert('All files are already WAV.');
-    return;
-  }
   startBatchJob('/api/convert-wav', 'convert',
-    `Convert ${nonWav} non-WAV file${nonWav !== 1 ? 's' : ''} to WAV format?\n\n` +
+    `Convert all non-WAV files in this folder to WAV format?\n\n` +
     `Originals will be backed up to a timestamped subfolder.\n` +
     `Original non-WAV files will be removed after conversion.`
   );

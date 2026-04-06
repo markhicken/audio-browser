@@ -1,13 +1,15 @@
 import { state, dom } from './state.js';
 import { fmtTime, resolvePath } from './utils.js';
-import { renderList, scrollToSelected } from './filelist.js';
+import { updatePlayingRow, focusRow, scrollToSelected } from './filelist.js';
+import { ensureEntryLoaded } from './navigation.js';
 
 function updatePlayingClass() {
   dom.filelist.classList.toggle('audio-active', state.isAudioPlaying);
 }
 
-export function playFile(entry) {
+export function playFile(entry, index = state.selectedIndex) {
   const filePath = resolvePath(entry.name);
+  const previousPath = state.playingFile;
   state.playingFile = filePath;
   state.isAudioPlaying = true;
   dom.audio.src = '/api/audio?file=' + encodeURIComponent(filePath);
@@ -15,11 +17,13 @@ export function playFile(entry) {
   dom.audio.play().catch(() => {});
   dom.transportName.textContent = entry.name;
   dom.playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="3.5" height="10" rx="0.5" fill="currentColor"/><rect x="7.5" y="1" width="3.5" height="10" rx="0.5" fill="currentColor"/></svg>';
-  renderList();
+  state.selectedIndex = index;
+  updatePlayingRow(previousPath, filePath);
   updatePlayingClass();
 }
 
 export function stopPlayback() {
+  const previousPath = state.playingFile;
   dom.audio.pause();
   dom.audio.removeAttribute('src');
   dom.audio.load();
@@ -29,7 +33,7 @@ export function stopPlayback() {
   dom.transportName.textContent = 'No file selected';
   dom.progressBar.style.width = '0%';
   dom.transportTime.textContent = '0:00 / 0:00';
-  renderList();
+  updatePlayingRow(previousPath, null);
   updatePlayingClass();
 }
 
@@ -58,22 +62,23 @@ export function initTransport() {
   });
 
   // Auto-advance on track end
-  dom.audio.addEventListener('ended', () => {
+  dom.audio.addEventListener('ended', async () => {
     if (dom.autoplayCb.checked) {
       for (let i = state.selectedIndex + 1; i < state.entries.length; i++) {
-        if (state.entries[i].type === 'file') {
-          state.selectedIndex = i;
-          renderList();
+        const entry = await ensureEntryLoaded(i);
+        if (entry && entry.type === 'file') {
+          await focusRow(i);
           scrollToSelected();
-          playFile(state.entries[i]);
+          playFile(entry, i);
           return;
         }
       }
     }
+    const previousPath = state.playingFile;
     state.playingFile = null;
     state.isAudioPlaying = false;
     dom.playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,0 12,6 2,12" fill="currentColor"/></svg>';
-    renderList();
+    updatePlayingRow(previousPath, null);
     updatePlayingClass();
   });
 

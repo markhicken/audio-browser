@@ -102,9 +102,20 @@ body {
   height: 32px;
 }
 .row:hover { background: var(--bg-hover); }
+.row.row-placeholder:hover { background: transparent; }
 .row.selected {
   background: var(--bg-selected);
   border-left-color: var(--accent);
+}
+.row-placeholder {
+  color: var(--text-muted);
+}
+.row-placeholder .row-name {
+  opacity: 0.7;
+}
+.list-spacer {
+  width: 100%;
+  pointer-events: none;
 }
 
 /* Playing row icon turns accent color */
