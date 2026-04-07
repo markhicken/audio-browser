@@ -33,6 +33,20 @@ export function initKeyboard() {
         }
         break;
 
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (dom.audio.duration) {
+          dom.audio.currentTime = Math.max(0, dom.audio.currentTime - 10);
+        }
+        break;
+
+      case 'ArrowRight':
+        e.preventDefault();
+        if (dom.audio.duration) {
+          dom.audio.currentTime = Math.min(dom.audio.duration, dom.audio.currentTime + 10);
+        }
+        break;
+
       case ' ':
         e.preventDefault();
         togglePause();
