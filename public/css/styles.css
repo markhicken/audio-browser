@@ -91,6 +91,25 @@ body {
 #filelist::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
 #filelist::-webkit-scrollbar-thumb:hover { background: #666; }
 
+/* === List Header === */
+.list-header.row {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.list-header.row:hover { background: var(--bg-primary); }
+.sortable { cursor: pointer; transition: color 0.15s; }
+.sortable:hover { color: var(--text-primary); }
+.sort-indicator { display: inline-block; width: 10px; margin-left: 2px; }
+
 /* === Row === */
 .row {
   display: flex;
@@ -138,7 +157,9 @@ body {
 .row-badge {
   font-size: 9px;
   font-weight: 600;
-  padding: 1px 5px;
+  padding: 2px 0;
+  width: 45px;
+  text-align: center;
   border-radius: 3px;
   margin-left: 10px;
   text-transform: uppercase;
@@ -196,6 +217,62 @@ body {
 #statusbar button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+#statusbar button.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+}
+#statusbar button.btn-quiet:hover {
+  background: var(--bg-hover);
+  border-color: transparent;
+}
+#statusbar button.btn-quiet .ellipsis-icon {
+  margin-left: -2px; /* slight pull-in to balance spacing visually */
+}
+
+/* === Dropdown for Actions === */
+.dropdown {
+  position: relative;
+  display: flex;
+}
+.dropdown-content {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 140px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  margin-bottom: 6px;
+}
+.dropdown-content.visible {
+  display: flex;
+  flex-direction: column;
+}
+.dropdown-content button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+  padding: 8px 14px !important;
+  font-size: 11px !important;
+  border-radius: 0 !important;
+  text-align: left;
+  width: 100%;
+}
+.dropdown-content button:hover {
+  background: var(--bg-hover) !important;
+}
+.dropdown-content button:disabled {
+  opacity: 0.5 !important;
+  cursor: default !important;
 }
 
 /* === Context Menu === */

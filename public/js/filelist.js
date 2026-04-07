@@ -337,4 +337,38 @@ export function initFileListEvents() {
       selectRow(index);
     }
   });
+
+  const header = document.getElementById('list-header');
+  if (header) {
+    updateSortIndicators();
+    header.addEventListener('click', (e) => {
+      const sortable = e.target.closest('.sortable');
+      if (!sortable) return;
+      const sortBy = sortable.dataset.sort;
+      if (state.sort === sortBy) {
+        state.order = state.order === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sort = sortBy;
+        state.order = 'asc';
+      }
+      updateSortIndicators();
+      import('./navigation.js').then(m => m.loadDirectory(state.currentDir));
+    });
+  }
+}
+
+export function updateSortIndicators() {
+  const header = document.getElementById('list-header');
+  if (!header) return;
+  const sortables = header.querySelectorAll('.sortable');
+  sortables.forEach(el => {
+    const indicator = el.querySelector('.sort-indicator');
+    if (el.dataset.sort === state.sort) {
+      indicator.innerHTML = state.order === 'asc' ? '&#8593;' : '&#8595;';
+      el.style.color = 'var(--text-primary)';
+    } else {
+      indicator.innerHTML = '';
+      el.style.color = '';
+    }
+  });
 }

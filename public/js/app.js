@@ -24,6 +24,8 @@ window.addEventListener('hashchange', () => {
 });
 
 // === Batch job modal (shared by normalize + convert) ===
+const btnActions = document.getElementById('btn-actions');
+const actionsMenu = document.getElementById('actions-menu');
 const btnNormalize = document.getElementById('btn-normalize');
 const btnConvertWav = document.getElementById('btn-convert-wav');
 const overlay = document.getElementById('norm-overlay');
@@ -50,12 +52,14 @@ function showModal(type) {
   overlay.classList.add('visible');
   btnNormalize.disabled = true;
   btnConvertWav.disabled = true;
+  btnActions.disabled = true;
 }
 
 function hideModal() {
   overlay.classList.remove('visible');
   btnNormalize.disabled = false;
   btnConvertWav.disabled = false;
+  btnActions.disabled = false;
 }
 
 function updateProgress(data) {
@@ -129,6 +133,22 @@ async function startBatchJob(endpoint, type, confirmMsg) {
     alert('Operation failed: ' + err.message);
   }
 }
+
+// Actions dropdown toggle
+btnActions.addEventListener('click', (e) => {
+  e.stopPropagation();
+  actionsMenu.classList.toggle('visible');
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#actions-dropdown')) {
+    actionsMenu.classList.remove('visible');
+  }
+});
+actionsMenu.addEventListener('click', (e) => {
+  if (e.target.tagName === 'BUTTON') {
+    actionsMenu.classList.remove('visible');
+  }
+});
 
 // Normalize button
 btnNormalize.addEventListener('click', () => {

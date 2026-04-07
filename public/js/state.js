@@ -18,7 +18,9 @@ export const state = {
   visiblePageEnd: 1,
   listRequestToken: 0,
   scrollPrefetchTimer: null,
-  isLoadingDirectory: false
+  isLoadingDirectory: false,
+  sort: 'name',
+  order: 'asc'
 };
 
 // DOM element references

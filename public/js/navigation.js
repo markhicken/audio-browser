@@ -84,7 +84,9 @@ export async function loadDirectoryPage(page) {
   try {
     const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
       '&page=' + page +
-      '&pageSize=' + state.pageSize);
+      '&pageSize=' + state.pageSize +
+      '&sort=' + state.sort +
+      '&order=' + state.order);
     if (!res.ok) {
       state.loadingPages.delete(page);
       rerenderVisibleWindow();
@@ -120,7 +122,10 @@ export async function loadDirectory(dir) {
   renderList();
 
   try {
-    const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + '&page=1&pageSize=' + state.pageSize);
+    const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + 
+      '&page=1&pageSize=' + state.pageSize +
+      '&sort=' + state.sort +
+      '&order=' + state.order);
     if (!res.ok) {
       if (nextDir !== state.homeDir) {
         loadDirectory(state.homeDir);

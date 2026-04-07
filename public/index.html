@@ -18,6 +18,13 @@
   <div id="warning"></div>
 
   <!-- File list -->
+  <div id="list-header" class="list-header row">
+    <span class="row-icon"></span>
+    <span class="row-name sortable" data-sort="name">Name <span class="sort-indicator"></span></span>
+    <span class="header-ext sortable" data-sort="ext" style="flex-shrink: 0; margin-left: 10px; width: 45px; text-align: center;">Type <span class="sort-indicator"></span></span>
+    <span class="row-duration">Length</span>
+    <span class="row-size sortable" data-sort="size">Size <span class="sort-indicator"></span></span>
+  </div>
   <div id="filelist" tabindex="0"></div>
   <div id="empty">No audio files in this folder</div>
 
@@ -25,8 +32,16 @@
   <div id="statusbar">
     <span id="file-count"></span>
     <span id="statusbar-spacer"></span>
-    <button id="btn-normalize" title="Normalize audio levels for all files in this folder">Normalize Levels</button>
-    <button id="btn-convert-wav" title="Convert all files to WAV format">Convert to WAV</button>
+    <div class="dropdown" id="actions-dropdown">
+      <button id="btn-actions" class="btn-quiet">
+        <span>Actions</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="ellipsis-icon"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+      </button>
+      <div class="dropdown-content" id="actions-menu">
+        <button id="btn-normalize" title="Normalize audio levels for all files in this folder">Normalize Levels</button>
+        <button id="btn-convert-wav" title="Convert all files to WAV format">Convert to WAV</button>
+      </div>
+    </div>
   </div>
 
   <!-- Transport bar -->

@@ -71,6 +71,9 @@ function probeDuration(filePath) {
   });
 }
 
+// Shared cache for durations and sizes
+const metadataCache = new Map(); // AbsolutePath -> { size, duration, mtimeMs }
+
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
   let nextIndex = 0;
@@ -94,6 +97,9 @@ app.get('/api/list', async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const requestedPageSize = parseInt(req.query.pageSize, 10) || 200;
   const pageSize = Math.min(Math.max(requestedPageSize, 25), 500);
+
+  const sort = req.query.sort || 'name'; // 'name', 'size'
+  const order = req.query.order || 'asc'; // 'asc', 'desc'
 
   const resolved = path.resolve(dir);
 
@@ -124,9 +130,45 @@ app.get('/api/list', async (req, res) => {
     }
   }
 
-  const cmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  folders.sort(cmp);
-  files.sort(cmp);
+  // Pre-calculate stats if sorting by size
+  if (sort === 'size') {
+    await mapWithConcurrency(files, 32, async (file) => {
+      const filePath = path.join(resolved, file.name);
+      try {
+        const stat = await fs.promises.stat(filePath);
+        file.size = stat.size;
+        file.mtimeMs = stat.mtimeMs;
+      } catch {
+        file.size = 0;
+      }
+      return file;
+    });
+  }
+
+  const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  
+  folders.sort((a, b) => {
+    let cmp = nameCmp(a, b);
+    return order === 'desc' ? -cmp : cmp;
+  });
+
+  files.sort((a, b) => {
+    if (sort === 'size') {
+      return order === 'desc' ? b.size - a.size : a.size - b.size;
+    }
+    if (sort === 'ext') {
+      const extA = a.ext || '';
+      const extB = b.ext || '';
+      const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
+      if (cmp !== 0) {
+        return order === 'desc' ? -cmp : cmp;
+      }
+      return nameCmp(a, b);
+    }
+    // Default to name
+    let cmp = nameCmp(a, b);
+    return order === 'desc' ? -cmp : cmp;
+  });
 
   const entries = [];
   if (resolved !== HOME) {
@@ -141,13 +183,30 @@ app.get('/api/list', async (req, res) => {
   const hydratedEntries = await mapWithConcurrency(pageEntries, 8, async (entry) => {
     if (entry.type !== 'file') return entry;
 
-    let size = 0;
-    try {
-      const stat = await fs.promises.stat(path.join(resolved, entry.name));
-      size = stat.size;
-    } catch {}
+    const filePath = path.join(resolved, entry.name);
+    let size = entry.size;
+    let mtimeMs = entry.mtimeMs;
 
-    const duration = await probeDuration(path.join(resolved, entry.name));
+    if (size === undefined) {
+      try {
+        const stat = await fs.promises.stat(filePath);
+        size = stat.size;
+        mtimeMs = stat.mtimeMs;
+      } catch {
+        size = 0;
+      }
+    }
+
+    const cached = metadataCache.get(filePath);
+    let duration = null;
+
+    if (cached && cached.mtimeMs === mtimeMs) {
+      duration = cached.duration;
+    } else {
+      duration = await probeDuration(filePath);
+      metadataCache.set(filePath, { duration, size, mtimeMs });
+    }
+
     return { ...entry, size, duration };
   });
 
