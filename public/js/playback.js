@@ -52,8 +52,12 @@ export function togglePause() {
 }
 
 export function initTransport() {
+  // Drag state (shared between timeupdate and seek handler)
+  let isDragging = false;
+
   // Progress updates
   dom.audio.addEventListener('timeupdate', () => {
+    if (isDragging) return; // Don't fight with drag
     if (dom.audio.duration) {
       const pct = (dom.audio.currentTime / dom.audio.duration) * 100;
       dom.progressBar.style.width = pct + '%';
@@ -82,12 +86,37 @@ export function initTransport() {
     updatePlayingClass();
   });
 
-  // Seek on progress bar click
-  dom.progressWrap.addEventListener('click', (e) => {
+  // Seek on progress bar click / drag
+  function seekFromEvent(e) {
     if (!dom.audio.duration) return;
     const rect = dom.progressWrap.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    dom.audio.currentTime = pct * dom.audio.duration;
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    dom.progressBar.style.width = (pct * 100) + '%';
+    dom.transportTime.textContent = fmtTime(pct * dom.audio.duration) + ' / ' + fmtTime(dom.audio.duration);
+    return pct;
+  }
+
+  dom.progressWrap.addEventListener('mousedown', (e) => {
+    if (!dom.audio.duration) return;
+    e.preventDefault();
+    isDragging = true;
+    dom.progressWrap.classList.add('dragging');
+    dom.progressBar.classList.add('no-transition');
+    seekFromEvent(e);
+
+    const onMove = (ev) => seekFromEvent(ev);
+    const onUp = (ev) => {
+      isDragging = false;
+      dom.progressWrap.classList.remove('dragging');
+      dom.progressBar.classList.remove('no-transition');
+      const pct = seekFromEvent(ev);
+      if (pct !== undefined) dom.audio.currentTime = pct * dom.audio.duration;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   });
 
   // Play button click
@@ -98,4 +127,64 @@ export function initTransport() {
       playFile(state.entries[state.selectedIndex]);
     }
   });
+
+  // === Volume control ===
+  const savedVolume = localStorage.getItem('audioBrowser_volume');
+  const initialVolume = savedVolume !== null ? Number(savedVolume) : 100;
+  dom.volumeSlider.value = initialVolume;
+  dom.audio.volume = initialVolume / 100;
+  updateVolumeIcon(initialVolume);
+  updateVolumeSliderFill(initialVolume);
+
+  dom.volumeSlider.addEventListener('input', () => {
+    const vol = Number(dom.volumeSlider.value);
+    dom.audio.volume = vol / 100;
+    localStorage.setItem('audioBrowser_volume', vol);
+    updateVolumeIcon(vol);
+    updateVolumeSliderFill(vol);
+    // Clear muted state when user drags slider
+    dom.volumeIcon.classList.remove('muted');
+  });
+
+  // Mute toggle on icon click
+  let volumeBeforeMute = initialVolume;
+  dom.volumeIcon.addEventListener('click', () => {
+    if (dom.audio.volume > 0) {
+      volumeBeforeMute = Number(dom.volumeSlider.value);
+      dom.volumeSlider.value = 0;
+      dom.audio.volume = 0;
+      dom.volumeIcon.classList.add('muted');
+      updateVolumeIcon(0);
+      updateVolumeSliderFill(0);
+    } else {
+      const restore = volumeBeforeMute > 0 ? volumeBeforeMute : 50;
+      dom.volumeSlider.value = restore;
+      dom.audio.volume = restore / 100;
+      dom.volumeIcon.classList.remove('muted');
+      updateVolumeIcon(restore);
+      updateVolumeSliderFill(restore);
+      localStorage.setItem('audioBrowser_volume', restore);
+    }
+  });
+}
+
+function updateVolumeSliderFill(vol) {
+  const pct = vol;
+  dom.volumeSlider.style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--progress-bg) ${pct}%)`;
+}
+
+function updateVolumeIcon(vol) {
+  const wave1 = document.getElementById('vol-wave1');
+  const wave2 = document.getElementById('vol-wave2');
+  if (vol === 0) {
+    wave1.style.display = 'none';
+    wave2.style.display = 'none';
+  } else if (vol < 50) {
+    wave1.style.display = '';
+    wave2.style.display = 'none';
+  } else {
+    wave1.style.display = '';
+    wave2.style.display = '';
+  }
 }

@@ -34,5 +34,7 @@ export const dom = {
   progressWrap: document.getElementById('progress-wrap'),
   transportTime: document.getElementById('transport-time'),
   autoplayCb: document.getElementById('autoplay-cb'),
-  fileCount: document.getElementById('file-count')
+  fileCount: document.getElementById('file-count'),
+  volumeSlider: document.getElementById('volume-slider'),
+  volumeIcon: document.getElementById('volume-icon')
 };
