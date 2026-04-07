@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audio Browser</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
 
   <!-- Header with title + breadcrumbs -->
@@ -21,7 +23,9 @@
   <div id="list-header" class="list-header row">
     <span class="row-icon"></span>
     <span class="row-name sortable" data-sort="name">Name <span class="sort-indicator"></span></span>
-    <span class="header-ext sortable" data-sort="ext" style="flex-shrink: 0; margin-left: 10px; width: 45px; text-align: center;">Type <span class="sort-indicator"></span></span>
+    <span class="header-ext sortable" data-sort="ext"
+      style="flex-shrink: 0; margin-left: 10px; width: 45px; text-align: center;">Type <span
+        class="sort-indicator"></span></span>
     <span class="row-duration">Length</span>
     <span class="row-size sortable" data-sort="size">Size <span class="sort-indicator"></span></span>
   </div>
@@ -34,8 +38,12 @@
     <span id="statusbar-spacer"></span>
     <div class="dropdown" id="actions-dropdown">
       <button id="btn-actions" class="btn-quiet">
-        <span>Actions</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="ellipsis-icon"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+        <span>Actions &vsupnE; </span>
+        <!-- <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="ellipsis-icon">
+          <circle cx="5" cy="12" r="2"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+          <circle cx="19" cy="12" r="2"></circle>
+        </svg> -->
       </button>
       <div class="dropdown-content" id="actions-menu">
         <button id="btn-normalize" title="Normalize audio levels for all files in this folder">Normalize Levels</button>
@@ -46,12 +54,21 @@
 
   <!-- Transport bar -->
   <div id="transport">
-    <button id="play-btn" title="Play/Pause (Space)"><svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,0 12,6 2,12" fill="currentColor"/></svg></button>
+    <button id="play-btn" title="Play/Pause (Space)"><svg width="12" height="12" viewBox="0 0 12 12">
+        <polygon points="2,0 12,6 2,12" fill="currentColor" />
+      </svg></button>
     <span id="transport-name">No file selected</span>
-    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <div id="progress-wrap">
+      <div id="progress-bar"></div>
+    </div>
     <span id="transport-time">0:00 / 0:00</span>
     <div id="volume-control" title="Volume">
-      <button id="volume-icon" title="Mute/Unmute"><svg id="vol-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path id="vol-wave1" d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path id="vol-wave2" d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
+      <button id="volume-icon" title="Mute/Unmute"><svg id="vol-svg" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path id="vol-wave1" d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+          <path id="vol-wave2" d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+        </svg></button>
       <input type="range" id="volume-slider" min="0" max="100" value="100">
     </div>
     <label id="autoplay-toggle" title="Auto-play next track when current ends">
@@ -60,7 +77,8 @@
   </div>
 
   <!-- Keyboard hints -->
-  <div id="hints">&#8593;&#8595; Navigate &nbsp; Enter Open folder &nbsp; Backspace Parent &nbsp; Space Play/Pause &nbsp; Esc Stop &nbsp; Del Recycle</div>
+  <div id="hints">&#8593;&#8595; Navigate &nbsp; Enter Open folder &nbsp; Backspace Parent &nbsp; Space Play/Pause
+    &nbsp; Esc Stop &nbsp; Del Recycle</div>
 
   <!-- Normalization progress modal -->
   <div id="norm-overlay">
@@ -68,7 +86,9 @@
       <div id="norm-title">Normalizing Audio Levels</div>
       <div id="norm-phase"></div>
       <div id="norm-file"></div>
-      <div id="norm-progress-wrap"><div id="norm-progress-bar"></div></div>
+      <div id="norm-progress-wrap">
+        <div id="norm-progress-bar"></div>
+      </div>
       <div id="norm-count"></div>
     </div>
   </div>
@@ -86,4 +106,5 @@
   <script type="module" src="js/app.js"></script>
 
 </body>
+
 </html>
