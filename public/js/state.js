@@ -20,7 +20,8 @@ export const state = {
   scrollPrefetchTimer: null,
   isLoadingDirectory: false,
   sort: 'name',
-  order: 'asc'
+  order: 'asc',
+  isInitialLoad: true
 };
 
 // DOM element references

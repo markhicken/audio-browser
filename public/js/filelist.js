@@ -67,7 +67,8 @@ export function rerenderVisibleWindow() {
     renderList();
     return;
   }
-  renderWindow(state.visiblePageStart, state.visiblePageEnd);
+  const range = getPageRangeForScroll();
+  renderWindow(range.start, range.end);
 }
 
 function createRowHtml(entry, index) {
@@ -212,10 +213,6 @@ export async function prefetchVisiblePages() {
     if (!state.loadedPages.has(page) && !state.loadingPages.has(page)) {
       loadDirectoryPage(page);
     }
-  }
-
-  if (end < getTotalPages() && !state.loadedPages.has(end + 1) && !state.loadingPages.has(end + 1)) {
-    loadDirectoryPage(end + 1);
   }
 }
 

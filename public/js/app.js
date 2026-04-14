@@ -18,9 +18,14 @@ document.getElementById('app-title').addEventListener('click', () => {
 
 // Navigate when hash changes (manual URL edit, back/forward)
 window.addEventListener('hashchange', () => {
-  const rel = location.hash ? location.hash.slice(1) : '';
-  const abs = hashToAbsolute(rel);
-  if (abs !== state.currentDir) loadDirectory(abs);
+  const hash = location.hash ? location.hash.slice(1) : '';
+  if (hash) {
+    const origSep = state.homeDir.includes('\\') ? '\\' : '/';
+    const abs = hash.replace(/\//g, origSep);
+    if (abs !== state.currentDir) loadDirectory(abs);
+  } else {
+    loadDirectory(state.homeDir);
+  }
 });
 
 // === Batch job modal (shared by normalize + convert) ===
@@ -199,9 +204,16 @@ async function init() {
     }
   } catch {}
 
-  const hashRel = location.hash ? location.hash.slice(1) : '';
-  const savedRel = hashRel || localStorage.getItem('audioBrowser_lastDir') || '';
-  loadDirectory(hashToAbsolute(savedRel));
+  const hashPath = location.hash ? location.hash.slice(1) : '';
+  let savedPath = hashPath || localStorage.getItem('audioBrowser_lastDir') || '';
+  
+  // Convert forward slashes back to backslashes if needed
+  if (savedPath) {
+    const origSep = state.homeDir.includes('\\') ? '\\' : '/';
+    savedPath = savedPath.replace(/\//g, origSep);
+  }
+  
+  loadDirectory(savedPath || state.homeDir);
 }
 
 init();

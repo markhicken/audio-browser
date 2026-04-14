@@ -90,6 +90,25 @@ async function mapWithConcurrency(items, limit, mapper) {
   return results;
 }
 
+// Get available drives on Windows
+async function getAvailableDrives() {
+  const drives = [];
+  if (process.platform !== 'win32') {
+    return [{ name: '/', type: 'folder' }];
+  }
+
+  for (let i = 65; i <= 90; i++) {
+    const drive = String.fromCharCode(i) + ':';
+    try {
+      await fs.promises.access(drive + '\\');
+      drives.push({ name: drive, type: 'folder' });
+    } catch {
+      // Drive doesn't exist or isn't accessible
+    }
+  }
+  return drives;
+}
+
 // List directory contents
 app.get('/api/list', async (req, res) => {
   const dir = req.query.dir;
@@ -101,11 +120,27 @@ app.get('/api/list', async (req, res) => {
   const sort = req.query.sort || 'name'; // 'name', 'size'
   const order = req.query.order || 'asc'; // 'asc', 'desc'
 
-  const resolved = path.resolve(dir);
+  // Special case: list available drives
+  if (dir === '///drives') {
+    const drives = await getAvailableDrives();
+    drives.sort((a, b) => {
+      let cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      return order === 'desc' ? -cmp : cmp;
+    });
 
-  if (!resolved.startsWith(HOME)) {
-    return res.status(403).json({ error: 'Access restricted to home folder' });
+    return res.json({
+      path: '///drives',
+      entries: drives,
+      page: 1,
+      pageSize: drives.length,
+      offset: 0,
+      totalEntries: drives.length,
+      hasMore: false,
+      counts: { files: 0, folders: drives.length }
+    });
   }
+
+  const resolved = path.resolve(dir);
 
   let dirEntries;
   try {
@@ -171,7 +206,10 @@ app.get('/api/list', async (req, res) => {
   });
 
   const entries = [];
-  if (resolved !== HOME) {
+  // Show .. parent folder except at Unix filesystem root (/)
+  // Windows drive roots (C:\, D:\) should still show .. to go back to drives list
+  const isUnixRoot = process.platform !== 'win32' && resolved === '/';
+  if (!isUnixRoot) {
     entries.push({ name: '..', type: 'folder' });
   }
   entries.push(...folders, ...files);
@@ -232,10 +270,6 @@ app.get('/api/audio', (req, res) => {
 
   const resolved = path.resolve(file);
 
-  if (!resolved.startsWith(HOME)) {
-    return res.status(403).json({ error: 'Access restricted to home folder' });
-  }
-
   if (!fs.existsSync(resolved)) {
     return res.status(404).json({ error: 'File not found' });
   }
@@ -283,7 +317,6 @@ app.get('/api/duration', (req, res) => {
   if (!ffmpegAvailable) return res.json({ duration: null });
 
   const resolved = path.resolve(file);
-  if (!resolved.startsWith(HOME)) return res.status(403).json({ error: 'Access restricted to home folder' });
   if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'File not found' });
 
   probeDuration(resolved).then(duration => res.json({ duration }));
@@ -295,10 +328,6 @@ app.delete('/api/file', (req, res) => {
   if (!file) return res.status(400).json({ error: 'file parameter required' });
 
   const resolved = path.resolve(file);
-
-  if (!resolved.startsWith(HOME)) {
-    return res.status(403).json({ error: 'Access restricted to home folder' });
-  }
 
   if (!fs.existsSync(resolved)) {
     return res.status(404).json({ error: 'File not found' });
@@ -413,7 +442,6 @@ async function prepareBatchJob(req, res) {
   if (jobState.active) { res.status(409).json({ error: 'A batch operation is already in progress' }); return null; }
 
   const resolved = path.resolve(dir);
-  if (!resolved.startsWith(HOME)) { res.status(403).json({ error: 'Access restricted to home folder' }); return null; }
 
   try {
     const audioFiles = await listAudioFiles(resolved);
