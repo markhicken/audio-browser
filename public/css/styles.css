@@ -280,6 +280,41 @@ body {
   margin-left: -2px; /* slight pull-in to balance spacing visually */
 }
 
+#loading-progress {
+  display: flex;
+  justify-content: center;
+}
+
+.loading-progress-bar {
+  width: 240px;
+  height: 8px;
+  background: var(--progress-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-progress-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.18s ease;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--progress-bg);
+  border-top: 3px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* === Dropdown for Actions === */
 .dropdown {
   position: relative;
@@ -554,10 +589,12 @@ body {
 #empty {
   display: none;
   flex: 1;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   color: var(--text-muted);
   font-size: 13px;
+  gap: 12px;
 }
 
 /* === Normalization Modal === */
