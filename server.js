@@ -27,6 +27,18 @@ const MIME_TYPES = {
   '.opus': 'audio/ogg'
 };
 
+function normalizeRequestPath(requestPath) {
+  if (!requestPath) return requestPath;
+  const decoded = requestPath.replace(/\\/g, '/');
+  if (process.platform === 'win32') {
+    const driveRootMatch = /^([a-z]):\/?$/i.exec(decoded);
+    if (driveRootMatch) {
+      return driveRootMatch[1].toUpperCase() + ':' + path.sep;
+    }
+  }
+  return decoded;
+}
+
 const HOME = os.homedir();
 
 // Check ffmpeg availability
@@ -111,7 +123,7 @@ async function getAvailableDrives() {
 
 // List directory contents
 app.get('/api/list', async (req, res) => {
-  const dir = req.query.dir;
+  const dir = decodeURIComponent(req.query.dir);
   if (!dir) return res.status(400).json({ error: 'dir parameter required' });
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const requestedPageSize = parseInt(req.query.pageSize, 10) || 200;
@@ -141,7 +153,10 @@ app.get('/api/list', async (req, res) => {
     });
   }
 
-  const resolved = path.resolve(dir);
+  const normalizedDir = normalizeRequestPath(dir);
+  const resolved = process.platform === 'win32' && /^[a-z]:\\$/i.test(normalizedDir)
+    ? normalizedDir
+    : path.resolve(normalizedDir);
 
   let dirEntries;
   try {
@@ -274,10 +289,13 @@ app.get('/api/list', async (req, res) => {
 
 // Serve or transcode audio file
 app.get('/api/audio', (req, res) => {
-  const file = req.query.file;
+  const file = decodeURIComponent(req.query.file);
   if (!file) return res.status(400).json({ error: 'file parameter required' });
 
-  const resolved = path.resolve(file);
+  const normalizedFile = normalizeRequestPath(file);
+  const resolved = process.platform === 'win32' && /^[a-z]:\\$/i.test(normalizedFile)
+    ? normalizedFile
+    : path.resolve(normalizedFile);
 
   if (!fs.existsSync(resolved)) {
     return res.status(404).json({ error: 'File not found' });
