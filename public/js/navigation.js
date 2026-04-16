@@ -10,6 +10,11 @@ function pathToHash(absPath) {
   return absPath;
 }
 
+function updateHistoryButtons() {
+  dom.backBtn.disabled = state.currentHistoryIndex <= 0;
+  dom.forwardBtn.disabled = state.currentHistoryIndex >= state.historyStack.length - 1;
+}
+
 export function renderBreadcrumbs() {
   const current = state.currentDir;
   
@@ -209,14 +214,26 @@ export async function loadDirectory(dir) {
     const hashPath = pathToHash(state.currentDir);
     localStorage.setItem('audioBrowser_lastDir', hashPath);
     
-    // Use replaceState for initial load, pushState for subsequent navigation
     if (state.isInitialLoad) {
-      history.replaceState(null, '', '#' + hashPath);
+      state.historyStack = [state.currentDir];
+      state.currentHistoryIndex = 0;
+      history.replaceState({ index: 0 }, '', '#' + hashPath);
       state.isInitialLoad = false;
-    } else {
-      history.pushState(null, '', '#' + hashPath);
+    } else if (history.state && typeof history.state.index === 'number') {
+      // Back/forward navigation
+      state.currentHistoryIndex = history.state.index;
     }
     
+    // Check if this is a new navigation (not in history)
+    if (state.historyStack[state.currentHistoryIndex] !== state.currentDir) {
+      // New navigation
+      state.historyStack = state.historyStack.slice(0, state.currentHistoryIndex + 1);
+      state.historyStack.push(state.currentDir);
+      state.currentHistoryIndex = state.historyStack.length - 1;
+      history.pushState({ index: state.currentHistoryIndex }, '', '#' + hashPath);
+    }
+    
+    updateHistoryButtons();
     renderBreadcrumbs();
     renderList();
     scrollToSelected();

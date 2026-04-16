@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 // Set environment variable to indicate we're in Electron
@@ -19,6 +19,9 @@ function createWindow() {
       contextIsolation: true,
     },
   });
+
+  // Remove the menu bar
+  Menu.setApplicationMenu(null);
 
   // Load the app
   mainWindow.loadURL('http://localhost:3000');

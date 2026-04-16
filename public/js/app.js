@@ -23,6 +23,20 @@ document.getElementById('app-title').addEventListener('click', () => {
   if (state.homeDir) loadDirectory(state.homeDir);
 });
 
+// Back button
+dom.backBtn.addEventListener('click', () => {
+  if (state.currentHistoryIndex > 0) {
+    history.back();
+  }
+});
+
+// Forward button
+dom.forwardBtn.addEventListener('click', () => {
+  if (state.currentHistoryIndex < state.historyStack.length - 1) {
+    history.forward();
+  }
+});
+
 let searchDebounce = null;
 if (dom.searchInput) {
   dom.searchInput.addEventListener('input', () => {

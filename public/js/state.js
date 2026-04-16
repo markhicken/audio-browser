@@ -23,7 +23,9 @@ export const state = {
   sort: 'name',
   order: 'asc',
   isInitialLoad: true,
-  directoryError: null
+  directoryError: null,
+  historyStack: [],
+  currentHistoryIndex: -1
 };
 
 // DOM element references
@@ -42,5 +44,7 @@ export const dom = {
   searchInput: document.getElementById('filename-search'),
   fileCount: document.getElementById('file-count'),
   volumeSlider: document.getElementById('volume-slider'),
-  volumeIcon: document.getElementById('volume-icon')
+  volumeIcon: document.getElementById('volume-icon'),
+  backBtn: document.getElementById('back-btn'),
+  forwardBtn: document.getElementById('forward-btn')
 };
