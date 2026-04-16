@@ -1,5 +1,5 @@
 import { state, dom } from './state.js';
-import { loadDirectory, hashToAbsolute, initBreadcrumbEvents } from './navigation.js';
+import { loadDirectory, initBreadcrumbEvents } from './navigation.js';
 import { initFileListEvents } from './filelist.js';
 import { initTransport, stopPlayback } from './playback.js';
 import { initKeyboard } from './keyboard.js';
@@ -20,9 +20,14 @@ document.getElementById('app-title').addEventListener('click', () => {
 window.addEventListener('hashchange', () => {
   const hash = location.hash ? location.hash.slice(1) : '';
   if (hash) {
-    const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-    const abs = hash.replace(/\//g, origSep);
-    if (abs !== state.currentDir) loadDirectory(abs);
+    try {
+      const decoded = decodeURIComponent(hash);
+      const origSep = state.homeDir.includes('\\') ? '\\' : '/';
+      const abs = decoded.replace(/\//g, origSep);
+      if (abs !== state.currentDir) loadDirectory(abs);
+    } catch {
+      // Invalid hash, ignore
+    }
   } else {
     loadDirectory(state.homeDir);
   }
@@ -207,10 +212,16 @@ async function init() {
   const hashPath = location.hash ? location.hash.slice(1) : '';
   let savedPath = hashPath || localStorage.getItem('audioBrowser_lastDir') || '';
   
-  // Convert forward slashes back to backslashes if needed
+  // Decode and convert hash path to absolute path
   if (savedPath) {
-    const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-    savedPath = savedPath.replace(/\//g, origSep);
+    try {
+      savedPath = decodeURIComponent(savedPath);
+      // Convert forward slashes back to backslashes if needed
+      const origSep = state.homeDir.includes('\\') ? '\\' : '/';
+      savedPath = savedPath.replace(/\//g, origSep);
+    } catch {
+      savedPath = state.homeDir;
+    }
   }
   
   loadDirectory(savedPath || state.homeDir);

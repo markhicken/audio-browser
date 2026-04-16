@@ -10,19 +10,6 @@ function pathToHash(absPath) {
   return absPath.replace(/\\/g, '/');
 }
 
-// Convert a hash back to an absolute path
-export function hashToAbsolute(hash) {
-  if (!hash) return state.homeDir;
-  try {
-    const decoded = decodeURIComponent(hash);
-    // Preserve the separator style from current directory
-    const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-    return decoded.replace(/\//g, origSep);
-  } catch {
-    return state.homeDir;
-  }
-}
-
 export function renderBreadcrumbs() {
   const current = state.currentDir;
   
@@ -166,6 +153,7 @@ export async function loadDirectory(dir) {
   state.listRequestToken = token;
   state.isLoadingDirectory = true;
   state.currentDir = nextDir;
+  state.directoryError = null; // Clear any previous error
   resetDirectoryState();
   renderBreadcrumbs();
   renderList();
@@ -176,9 +164,22 @@ export async function loadDirectory(dir) {
       '&sort=' + state.sort +
       '&order=' + state.order);
     if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      const errorMessage = errorData.error || `Failed to load directory (${res.status})`;
+      
+      // If directory not found (404), show error instead of falling back
+      if (res.status === 404) {
+        state.directoryError = { message: `Directory not found: ${nextDir}` };
+        state.isLoadingDirectory = false;
+        renderList();
+        return;
+      }
+      
+      // For other errors, fall back to home directory
       if (nextDir !== state.homeDir) {
         loadDirectory(state.homeDir);
       } else {
+        state.directoryError = { message: errorMessage };
         state.isLoadingDirectory = false;
         renderList();
       }
@@ -215,7 +216,8 @@ export async function loadDirectory(dir) {
     if (data.hasMore) loadDirectoryPage(2);
   } catch (err) {
     state.isLoadingDirectory = false;
-    alert('Failed to load directory: ' + err.message);
+    state.directoryError = { message: 'Failed to load directory: ' + err.message };
+    renderList();
   }
 }
 

@@ -21,7 +21,8 @@ export const state = {
   isLoadingDirectory: false,
   sort: 'name',
   order: 'asc',
-  isInitialLoad: true
+  isInitialLoad: true,
+  directoryError: null
 };
 
 // DOM element references

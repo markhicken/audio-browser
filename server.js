@@ -146,6 +146,9 @@ app.get('/api/list', async (req, res) => {
   try {
     dirEntries = await fs.promises.readdir(resolved, { withFileTypes: true });
   } catch (err) {
+    if (err.code === 'ENOENT') {
+      return res.status(404).json({ error: 'Directory not found' });
+    }
     return res.status(403).json({ error: 'Cannot read directory: ' + err.message });
   }
 

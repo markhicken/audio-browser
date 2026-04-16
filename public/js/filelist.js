@@ -1,7 +1,7 @@
 import { state, dom } from './state.js';
 import { fmtSize, fmtTime, escHtml, resolvePath } from './utils.js';
 import { playFile, stopPlayback } from './playback.js';
-import { ensureEntryLoaded, loadDirectoryPage } from './navigation.js';
+import { ensureEntryLoaded, loadDirectoryPage, loadDirectory } from './navigation.js';
 
 const ROW_HEIGHT = 32;
 const PAGE_WINDOW_RADIUS = 1;
@@ -121,6 +121,37 @@ export function updateFileCount() {
 
 export function renderList() {
   updateFileCount();
+  
+  // Show directory error if present
+  if (state.directoryError) {
+    dom.filelist.style.display = 'none';
+    dom.empty.style.display = 'flex';
+    dom.empty.innerHTML = `
+      <div style="text-align: center;">
+        <div style="margin-bottom: 10px; color: #ff6b6b;">${escHtml(state.directoryError.message)}</div>
+        <div>
+          <button class="error-link" data-action="go-home" style="color: #007acc; background: none; border: none; cursor: pointer; text-decoration: underline;">Go to Home</button>
+          ${state.homeDir !== '///drives' ? ' | <button class="error-link" data-action="go-drives" style="color: #007acc; background: none; border: none; cursor: pointer; text-decoration: underline;">Go to Drives</button>' : ''}
+        </div>
+      </div>
+    `;
+    
+    // Add event listeners for the error links
+    const errorLinks = dom.empty.querySelectorAll('.error-link');
+    errorLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        const action = e.target.dataset.action;
+        if (action === 'go-home') {
+          loadDirectory(state.homeDir);
+        } else if (action === 'go-drives') {
+          loadDirectory('///drives');
+        }
+      });
+    });
+    
+    return;
+  }
+  
   if (state.totalEntries === 0) {
     dom.empty.textContent = state.isLoadingDirectory ? 'Loading files...' : 'No audio files in this folder';
     dom.filelist.style.display = 'none';
