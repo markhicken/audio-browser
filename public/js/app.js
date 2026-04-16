@@ -11,10 +11,27 @@ dom.autoplayCb.addEventListener('change', () => {
   localStorage.setItem('audioBrowser_autoNext', dom.autoplayCb.checked);
 });
 
+// Sort persistence
+const savedSort = localStorage.getItem('audioBrowser_sort');
+const savedOrder = localStorage.getItem('audioBrowser_order');
+if (savedSort) state.sort = savedSort;
+if (savedOrder) state.order = savedOrder;
+
 // Title click -> home
 document.getElementById('app-title').addEventListener('click', () => {
   if (state.homeDir) loadDirectory(state.homeDir);
 });
+
+let searchDebounce = null;
+if (dom.searchInput) {
+  dom.searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => {
+      state.searchQuery = dom.searchInput.value.trim();
+      if (state.currentDir) loadDirectory(state.currentDir);
+    }, 220);
+  });
+}
 
 // Navigate when hash changes (manual URL edit, back/forward)
 window.addEventListener('hashchange', () => {

@@ -66,6 +66,29 @@ body {
 #breadcrumbs span:hover { color: var(--accent-bright); }
 #breadcrumbs .sep { color: var(--text-muted); cursor: default; padding: 0 3px; }
 
+#search-bar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  flex-shrink: 0;
+}
+
+#filename-search {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+#filename-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* === Warning Banner === */
 #warning {
   background: #3d3520;

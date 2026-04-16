@@ -18,6 +18,7 @@ export const state = {
   visiblePageEnd: 1,
   listRequestToken: 0,
   scrollPrefetchTimer: null,
+  searchQuery: '',
   isLoadingDirectory: false,
   sort: 'name',
   order: 'asc',
@@ -38,6 +39,7 @@ export const dom = {
   progressWrap: document.getElementById('progress-wrap'),
   transportTime: document.getElementById('transport-time'),
   autoplayCb: document.getElementById('autoplay-cb'),
+  searchInput: document.getElementById('filename-search'),
   fileCount: document.getElementById('file-count'),
   volumeSlider: document.getElementById('volume-slider'),
   volumeIcon: document.getElementById('volume-icon')

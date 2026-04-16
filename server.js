@@ -119,6 +119,7 @@ app.get('/api/list', async (req, res) => {
 
   const sort = req.query.sort || 'name'; // 'name', 'size'
   const order = req.query.order || 'asc'; // 'asc', 'desc'
+  const searchQuery = (req.query.search || '').trim().toLowerCase();
 
   // Special case: list available drives
   if (dir === '///drives') {
@@ -152,8 +153,8 @@ app.get('/api/list', async (req, res) => {
     return res.status(403).json({ error: 'Cannot read directory: ' + err.message });
   }
 
-  const folders = [];
-  const files = [];
+  let folders = [];
+  let files = [];
 
   for (const entry of dirEntries) {
     if (entry.name.startsWith('.')) continue; // skip hidden files
@@ -166,6 +167,11 @@ app.get('/api/list', async (req, res) => {
         files.push({ name: entry.name, type: 'file', ext: ext.slice(1) });
       }
     }
+  }
+
+  if (searchQuery) {
+    folders = folders.filter(entry => entry.name.toLowerCase().includes(searchQuery));
+    files = files.filter(entry => entry.name.toLowerCase().includes(searchQuery));
   }
 
   // Pre-calculate stats if sorting by size

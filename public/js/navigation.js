@@ -111,11 +111,13 @@ export async function loadDirectoryPage(page) {
   const token = state.listRequestToken;
 
   try {
-    const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
+    const searchParam = state.searchQuery ? '&search=' + encodeURIComponent(state.searchQuery) : '';
+  const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
       '&page=' + page +
       '&pageSize=' + state.pageSize +
       '&sort=' + state.sort +
-      '&order=' + state.order);
+      '&order=' + state.order +
+      searchParam);
     if (!res.ok) {
       state.loadingPages.delete(page);
       if (page >= state.visiblePageStart && page <= state.visiblePageEnd) {
@@ -159,10 +161,12 @@ export async function loadDirectory(dir) {
   renderList();
 
   try {
+    const searchParam = state.searchQuery ? '&search=' + encodeURIComponent(state.searchQuery) : '';
     const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + 
       '&page=1&pageSize=' + state.pageSize +
       '&sort=' + state.sort +
-      '&order=' + state.order);
+      '&order=' + state.order +
+      searchParam);
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
       const errorMessage = errorData.error || `Failed to load directory (${res.status})`;

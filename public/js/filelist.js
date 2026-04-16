@@ -379,6 +379,8 @@ export function initFileListEvents() {
         state.sort = sortBy;
         state.order = 'asc';
       }
+      localStorage.setItem('audioBrowser_sort', state.sort);
+      localStorage.setItem('audioBrowser_order', state.order);
       updateSortIndicators();
       import('./navigation.js').then(m => m.loadDirectory(state.currentDir));
     });
