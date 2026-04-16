@@ -47,6 +47,14 @@ export function initContextMenu() {
     const action = item.dataset.action;
     const entry = state.entries[contextIndex];
 
+    if (action === 'copyname' && entry) {
+      navigator.clipboard.writeText(entry.name).then(() => {
+        item.textContent = 'Copied!';
+        setTimeout(() => { item.textContent = 'Copy Filename'; }, 1000);
+      });
+      hide();
+    }
+
     if (action === 'copypath' && entry) {
       const fullPath = resolvePath(entry.name);
       navigator.clipboard.writeText(fullPath).then(() => {
