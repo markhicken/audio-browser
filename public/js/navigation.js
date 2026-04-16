@@ -110,10 +110,12 @@ export async function loadDirectoryPage(page) {
   }
 
   const token = state.listRequestToken;
+  const searchQuery = state.searchQuery.trim();
+  if (searchQuery !== state.searchQuery) state.searchQuery = searchQuery;
 
   try {
-    const searchParam = state.searchQuery ? '&search=' + encodeURIComponent(state.searchQuery) : '';
-  const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
+    const searchParam = searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '';
+    const res = await fetch('/api/list?dir=' + encodeURIComponent(state.currentDir) +
       '&page=' + page +
       '&pageSize=' + state.pageSize +
       '&sort=' + state.sort +
@@ -161,8 +163,11 @@ export async function loadDirectory(dir) {
   renderBreadcrumbs();
   renderList();
 
+  const searchQuery = state.searchQuery.trim();
+  if (searchQuery !== state.searchQuery) state.searchQuery = searchQuery;
+
   try {
-    const searchParam = state.searchQuery ? '&search=' + encodeURIComponent(state.searchQuery) : '';
+    const searchParam = searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '';
     const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + 
       '&page=1&pageSize=' + state.pageSize +
       '&sort=' + state.sort +

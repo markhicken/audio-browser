@@ -4,7 +4,12 @@ import { togglePause, stopPlayback } from './playback.js';
 import { openSelected } from './navigation.js';
 
 export function initKeyboard() {
-  dom.filelist.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', (e) => {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) {
+      return;
+    }
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();

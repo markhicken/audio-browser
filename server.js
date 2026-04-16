@@ -595,9 +595,4 @@ app.listen(PORT, () => {
   const url = `http://localhost:${PORT}`;
   console.log(`Audio Browser running at ${url}`);
   console.log(`ffmpeg: ${ffmpegAvailable ? 'available' : 'NOT FOUND'}`);
-
-  // Open the default browser
-  const platform = process.platform;
-  const cmd = platform === 'win32' ? 'start' : platform === 'darwin' ? 'open' : 'xdg-open';
-  require('child_process').exec(`${cmd} ${url}`);
 });
