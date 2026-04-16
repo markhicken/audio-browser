@@ -29,7 +29,7 @@ if (dom.searchInput) {
     searchDebounce = setTimeout(() => {
       state.searchQuery = dom.searchInput.value.trim();
       if (state.currentDir) loadDirectory(state.currentDir);
-    }, 220);
+    }, 700);
   });
 }
 
