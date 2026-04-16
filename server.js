@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawn, execSync } = require('child_process');
-const trash = require('trash');
 
 const app = express();
 const PORT = 3000;
@@ -344,6 +343,7 @@ app.delete('/api/file', async (req, res) => {
   }
 
   try {
+    const { default: trash } = await import('trash');
     await trash([resolved]);
     res.json({ ok: true });
   } catch (err) {

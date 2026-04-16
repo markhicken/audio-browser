@@ -2,15 +2,36 @@
   "name": "audio-browser",
   "version": "1.0.0",
   "description": "Simple local audio file browser with auto-play",
+  "main": "main.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "electron:start": "electron .",
+    "build": "electron-builder"
   },
   "dependencies": {
     "express": "^5",
     "trash": "^10.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.audiobrowser.app",
+    "productName": "Audio Browser",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
