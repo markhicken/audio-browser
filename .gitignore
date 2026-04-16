@@ -1,2 +1,10 @@
+# Common OS metadata files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# app level ignores
 node_modules/
 .claude/
+dist/

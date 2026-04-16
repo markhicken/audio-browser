@@ -28,7 +28,7 @@ export function renderBreadcrumbs() {
   const separator = '/';
   
   // Check if we're at a Windows drive root (C:, D:, etc)
-  const isAtDriveRoot = /^[a-z]:$/i.test(current);
+  const isAtDriveRoot = /^[a-z]:\/?$/i.test(current);
   
   // Split and filter empty parts
   const parts = current.split(separator).filter((p, i) => p || i === 0);
@@ -54,8 +54,8 @@ export function renderBreadcrumbs() {
       accumulatedPath += part + separator;
     }
     
-    // Remove trailing separator for storage
-    const pathToStore = accumulatedPath.replace(/\/$/, '');
+    // Remove trailing separator for storage, except for drive letters
+    const pathToStore = /^[a-z]:/i.test(part) ? accumulatedPath : accumulatedPath.replace(/\/$/, '');
     html += `<span data-path="${pathToStore}">${part}</span>`;
   }
   
@@ -270,16 +270,23 @@ export async function openSelected() {
 
   if (entry.name === '..') {
     // Special case: if at a Windows drive root, navigate to drives list
-    if (/^[a-z]:$/i.test(state.currentDir)) {
+    if (/^[a-z]:\/?$/i.test(state.currentDir)) {
       loadDirectory('///drives');
       return;
     }
     
-    let parent = state.currentDir.substring(0, state.currentDir.lastIndexOf('/'))
-      || '/';
+    const parts = state.currentDir.split('/');
+    parts.pop();
+    let parent = parts.join('/') || '/';
+    if (/^[a-z]:$/i.test(parent)) parent += '/';
     
     loadDirectory(parent);
   } else {
+    // Special case: navigating from drives list to a drive
+    if (state.currentDir === '///drives') {
+      loadDirectory(entry.name);
+      return;
+    }
     loadDirectory(resolvePath(entry.name));
   }
 }
