@@ -1,13 +1,13 @@
 import { state, dom } from './state.js';
-import { escPath, resolvePath } from './utils.js';
+import { escPath, resolvePath, normalizePath } from './utils.js';
 import { renderList, scrollToSelected, prefetchVisiblePages, syncVisibleWindowToScroll, rerenderVisibleWindow } from './filelist.js';
 
 const ROW_HEIGHT = 32;
 let resizeReloadTimer = null;
 
-// Get path for URL hash (convert backslashes to forward slashes for clean URLs)
+// Paths are already normalized to forward slashes
 function pathToHash(absPath) {
-  return absPath.replace(/\\/g, '/');
+  return absPath;
 }
 
 export function renderBreadcrumbs() {
@@ -19,18 +19,15 @@ export function renderBreadcrumbs() {
     return;
   }
   
-  // Detect path separator and normalize
-  const isWindows = current.includes('\\');
-  const normalized = isWindows ? current : current.replace(/\\/g, '/');
-  const separator = isWindows ? '\\' : '/';
+  // Paths are normalized to use forward slashes
+  const separator = '/';
   
-  // Check if we're at a Windows drive root (C:\, D:\, etc)
-  const isAtDriveRoot = isWindows && /^[a-z]:\\$/i.test(current);
+  // Check if we're at a Windows drive root (C:, D:, etc)
+  const isAtDriveRoot = /^[a-z]:$/i.test(current);
   
   // Split and filter empty parts
-  const parts = normalized.split(separator).filter((p, i) => p || i === 0);
+  const parts = current.split(separator).filter((p, i) => p || i === 0);
   
-  // Use "Drives" for Windows drive roots, otherwise use "Drives"
   let html = `<span data-path="">Drives</span>`;
   let accumulatedPath = '';
   
@@ -41,16 +38,20 @@ export function renderBreadcrumbs() {
     html += '<span class="sep">&rsaquo;</span>';
     
     if (i === 0) {
-      // First part (drive letter on Windows or root "/" on Unix)
-      accumulatedPath = part + (isWindows ? '\\' : '/');
+      // First part (drive letter on Windows or root on Unix)
+      accumulatedPath = part;
+      if (isAtDriveRoot) {
+        // Windows drive letter, no trailing separator in path store
+      } else {
+        accumulatedPath += separator;
+      }
     } else {
       accumulatedPath += part + separator;
     }
     
-    // Remove trailing separator, then convert to forward-slash format for URL
-    const pathToStore = accumulatedPath.replace(/[\\\/]$/, '');
-    const forUrl = pathToStore.replace(/\\/g, '/');
-    html += `<span data-path="${forUrl}">${part}</span>`;
+    // Remove trailing separator for storage
+    const pathToStore = accumulatedPath.replace(/\/$/, '');
+    html += `<span data-path="${pathToStore}">${part}</span>`;
   }
   
   dom.breadcrumbs.innerHTML = html;
@@ -127,7 +128,7 @@ export async function loadDirectoryPage(page) {
     }
 
     const data = await res.json();
-    if (token !== state.listRequestToken || data.path !== state.currentDir) {
+    if (token !== state.listRequestToken || normalizePath(data.path) !== state.currentDir) {
       state.loadingPages.delete(page);
       return;
     }
@@ -193,7 +194,7 @@ export async function loadDirectory(dir) {
     const data = await res.json();
     if (token !== state.listRequestToken) return;
 
-    state.currentDir = data.path;
+    state.currentDir = normalizePath(data.path);
     mergePage(data);
     state.loadedPages.add(1);
     state.loadingPages.clear();
@@ -240,27 +241,20 @@ export async function openSelected() {
 
   // Special case: navigating from drives list
   if (state.currentDir === '///drives') {
-    // entry.name is like "C:" - convert to "C:\"
-    loadDirectory(entry.name + '\\');
+    // entry.name is like "C:" - keep with forward slash format
+    loadDirectory(entry.name);
     return;
   }
 
   if (entry.name === '..') {
-    const sep = state.currentDir.includes('\\') ? '\\' : '/';
-    
     // Special case: if at a Windows drive root, navigate to drives list
-    if (sep === '\\' && /^[a-z]:\\$/i.test(state.currentDir)) {
+    if (/^[a-z]:$/i.test(state.currentDir)) {
       loadDirectory('///drives');
       return;
     }
     
-    let parent = state.currentDir.substring(0, state.currentDir.lastIndexOf(sep))
-      || (sep === '/' ? '/' : state.currentDir.substring(0, 3));
-    
-    // Ensure Windows drive letters have a trailing backslash (e.g., "C:" -> "C:\")
-    if (sep === '\\' && /^[a-z]:$/i.test(parent)) {
-      parent += '\\';
-    }
+    let parent = state.currentDir.substring(0, state.currentDir.lastIndexOf('/'))
+      || '/';
     
     loadDirectory(parent);
   } else {
@@ -279,10 +273,7 @@ export function initBreadcrumbEvents() {
           // Drives clicked - navigate to drives list
           loadDirectory('///drives');
         } else {
-          // Convert forward slashes back to backslashes if needed
-          const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-          const absPath = path.replace(/\//g, origSep);
-          loadDirectory(absPath);
+          loadDirectory(path);
         }
       } catch {
         loadDirectory(state.homeDir);

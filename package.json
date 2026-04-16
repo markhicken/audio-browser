@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "description": "Simple local audio file browser with auto-play",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^5"
+    "express": "^5",
+    "trash": "^10.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

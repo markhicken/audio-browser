@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawn, execSync } = require('child_process');
+const trash = require('trash');
 
 const app = express();
 const PORT = 3000;
@@ -100,7 +101,7 @@ async function getAvailableDrives() {
   for (let i = 65; i <= 90; i++) {
     const drive = String.fromCharCode(i) + ':';
     try {
-      await fs.promises.access(drive + '\\');
+      await fs.promises.access(path.join(drive, path.sep));
       drives.push({ name: drive, type: 'folder' });
     } catch {
       // Drive doesn't exist or isn't accessible
@@ -331,8 +332,8 @@ app.get('/api/duration', (req, res) => {
   probeDuration(resolved).then(duration => res.json({ duration }));
 });
 
-// Delete file (send to recycle bin)
-app.delete('/api/file', (req, res) => {
+// Delete file (send to recycle bin or trash on all platforms)
+app.delete('/api/file', async (req, res) => {
   const file = req.query.file;
   if (!file) return res.status(400).json({ error: 'file parameter required' });
 
@@ -342,21 +343,12 @@ app.delete('/api/file', (req, res) => {
     return res.status(404).json({ error: 'File not found' });
   }
 
-  // Use PowerShell to send to recycle bin
-  const psCmd = `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('${resolved.replace(/'/g, "''")}', 'OnlyErrorDialogs', 'SendToRecycleBin')`;
-
-  const ps = spawn('powershell', ['-NoProfile', '-Command', psCmd], { stdio: ['ignore', 'pipe', 'pipe'] });
-
-  let stderr = '';
-  ps.stderr.on('data', (d) => { stderr += d; });
-
-  ps.on('close', (code) => {
-    if (code === 0) {
-      res.json({ ok: true });
-    } else {
-      res.status(500).json({ error: 'Failed to delete: ' + stderr.trim() });
-    }
-  });
+  try {
+    await trash([resolved]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete: ' + err.message });
+  }
 });
 
 

@@ -1,0 +1,7 @@
+{
+  "ignore": [
+    ".claude/**",
+    "LICENSE",
+    "README.md"
+  ]
+}

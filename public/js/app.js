@@ -4,6 +4,7 @@ import { initFileListEvents } from './filelist.js';
 import { initTransport, stopPlayback } from './playback.js';
 import { initKeyboard } from './keyboard.js';
 import { initContextMenu } from './contextmenu.js';
+import { normalizePath } from './utils.js';
 
 // Auto-play persistence
 dom.autoplayCb.checked = localStorage.getItem('audioBrowser_autoNext') === 'true';
@@ -39,9 +40,8 @@ window.addEventListener('hashchange', () => {
   if (hash) {
     try {
       const decoded = decodeURIComponent(hash);
-      const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-      const abs = decoded.replace(/\//g, origSep);
-      if (abs !== state.currentDir) loadDirectory(abs);
+      // Paths in hash are normalized to forward slashes
+      if (decoded !== state.currentDir) loadDirectory(decoded);
     } catch {
       // Invalid hash, ignore
     }
@@ -208,7 +208,7 @@ async function init() {
   const res = await fetch('/api/home');
   const data = await res.json();
   state.ffmpegAvailable = data.ffmpeg;
-  state.homeDir = data.home;
+  state.homeDir = normalizePath(data.home);
 
   if (!state.ffmpegAvailable) {
     dom.warning.textContent = 'ffmpeg not found. AIFF and WMA files cannot be played. Install ffmpeg to enable full format support.';
@@ -229,13 +229,10 @@ async function init() {
   const hashPath = location.hash ? location.hash.slice(1) : '';
   let savedPath = hashPath || localStorage.getItem('audioBrowser_lastDir') || '';
   
-  // Decode and convert hash path to absolute path
+  // Paths in hash/storage are normalized to forward slashes
   if (savedPath) {
     try {
       savedPath = decodeURIComponent(savedPath);
-      // Convert forward slashes back to backslashes if needed
-      const origSep = state.homeDir.includes('\\') ? '\\' : '/';
-      savedPath = savedPath.replace(/\//g, origSep);
     } catch {
       savedPath = state.homeDir;
     }

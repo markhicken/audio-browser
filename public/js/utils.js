@@ -19,11 +19,15 @@ export function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+export function normalizePath(p) {
+  return p.replace(/\\/g, '/');
+}
+
 export function escPath(p) {
   return p.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 export function resolvePath(name) {
-  const sep = state.currentDir.includes('\\') ? '\\' : '/';
-  return state.currentDir + sep + name;
+  // Paths are normalized to use forward slashes
+  return state.currentDir + '/' + name;
 }

@@ -5,8 +5,8 @@ const menu = document.getElementById('context-menu');
 let contextIndex = -1;
 
 function resolvePath(name) {
-  const sep = state.currentDir.includes('\\') ? '\\' : '/';
-  return state.currentDir + sep + name;
+  // Paths are normalized to use forward slashes
+  return state.currentDir + '/' + name;
 }
 
 function hide() {
