@@ -15,11 +15,11 @@ cabinet_width = 300
 cabinet_height = 475
 cabinet_x = (512 - cabinet_width) // 2
 cabinet_y = 18
-draw.rectangle([cabinet_x, cabinet_y, cabinet_x + cabinet_width, cabinet_y + cabinet_height], 
-               fill=speaker_color, outline=speaker_color, width=3)
+draw.rounded_rectangle([cabinet_x, cabinet_y, cabinet_x + cabinet_width, cabinet_y + cabinet_height], 
+                       radius=30, fill=speaker_color, outline=speaker_color, width=3)
 
 # Large woofer (speaker cone)
-woofer_radius = 157
+woofer_radius = 140
 woofer_center = (256, 320)
 draw.ellipse((woofer_center[0] - woofer_radius, woofer_center[1] - woofer_radius,
               woofer_center[0] + woofer_radius, woofer_center[1] + woofer_radius),
@@ -33,7 +33,7 @@ draw.ellipse((woofer_center[0] - dome_radius, woofer_center[1] - dome_radius,
 
 # Small tweeter (upper)
 tweeter_radius = 50
-tweeter_center = (256, 55)
+tweeter_center = (256, 110)
 draw.ellipse((tweeter_center[0] - tweeter_radius, tweeter_center[1] - tweeter_radius,
               tweeter_center[0] + tweeter_radius, tweeter_center[1] + tweeter_radius),
              fill=cone_color, outline=speaker_color, width=3)
