@@ -48,9 +48,15 @@ body {
   font-weight: bold;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 8px;
+  padding: 2px 8px;
+  margin-right: 8px;
   transition: background-color 0.15s, color 0.15s;
   flex-shrink: 0;
+}
+
+#back-btn .chevron, #forward-btn .chevron {
+  transform: scaleX(0.5);
 }
 
 #back-btn:hover:not(:disabled), #forward-btn:hover:not(:disabled) {
@@ -60,7 +66,7 @@ body {
 
 #back-btn:disabled, #forward-btn:disabled {
   color: var(--text-muted);
-  cursor: not-allowed;
+  cursor: default;
 }
 
 #app-title {
@@ -94,22 +100,36 @@ body {
   border-bottom: 1px solid var(--border);
   padding: 10px 16px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 #filename-search {
-  width: 100%;
+  flex: 1;
   max-width: 420px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   color: var(--text-primary);
   font-size: 13px;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 #filename-search:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.search-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--progress-bg);
+  border-top: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
 }
 
 /* === Warning Banner === */
@@ -121,6 +141,10 @@ body {
   display: none;
   flex-shrink: 0;
   border-bottom: 1px solid #4d4530;
+}
+#warning a {
+  color: #ffd700;
+  text-decoration: underline;
 }
 
 /* === File List === */
@@ -327,7 +351,7 @@ body {
   right: 0;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 4px 0;
   min-width: 140px;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
@@ -362,7 +386,7 @@ body {
   position: fixed;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 4px 0;
   min-width: 150px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);

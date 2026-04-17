@@ -101,6 +101,7 @@ function hideModal() {
   btnNormalize.disabled = false;
   btnConvertWav.disabled = false;
   btnActions.disabled = false;
+  state.isApiLoading = false;
 }
 
 function updateProgress(data) {
@@ -156,6 +157,7 @@ async function startBatchJob(endpoint, type, confirmMsg) {
 
   stopPlayback();
   showModal(type);
+  state.isApiLoading = true;
   updateProgress({ phase: 'backup', currentFile: '', current: 0, total: fileCount });
 
   try {
@@ -225,7 +227,7 @@ async function init() {
   state.homeDir = normalizePath(data.home);
 
   if (!state.ffmpegAvailable) {
-    dom.warning.textContent = 'ffmpeg not found. AIFF and WMA files cannot be played. Install ffmpeg to enable full format support.';
+    dom.warning.innerHTML = 'ffmpeg not found. Some files will not play or convert properly. <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">Install ffmpeg</a> to enable full format support.';
     dom.warning.style.display = 'block';
   }
 

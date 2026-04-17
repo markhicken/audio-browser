@@ -12,8 +12,14 @@
 
   <!-- Header with title + breadcrumbs -->
   <div id="header">
-    <button id="back-btn" disabled>&lt;</button>
-    <button id="forward-btn" disabled>&gt;</button>
+    <div>
+      <button id="back-btn" disabled>
+        <div class="chevron">&lt;</div>
+      </button>
+      <button id="forward-btn" disabled>
+        <div class="chevron">&gt;</div>
+      </button>
+    </div>
     <span id="app-title">Home</span>
     <div id="breadcrumbs"></div>
   </div>
@@ -21,6 +27,7 @@
   <!-- Filename search -->
   <div id="search-bar">
     <input id="filename-search" type="search" placeholder="Search filenames..." autocomplete="off" spellcheck="false">
+    <div id="search-spinner" class="search-spinner" hidden></div>
   </div>
 
   <!-- Warning banner (shown when ffmpeg is missing) -->

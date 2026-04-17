@@ -4,7 +4,7 @@ import { playFile, stopPlayback } from './playback.js';
 import { ensureEntryLoaded, loadDirectoryPage, loadDirectory } from './navigation.js';
 
 const ROW_HEIGHT = 32;
-const PAGE_WINDOW_RADIUS = 1;
+const PAGE_WINDOW_RADIUS = 1; // Number of pages to load before/after visible page
 
 function getFileCount() {
   return state.entryCounts.files || state.entries.filter(e => e?.type === 'file').length;
@@ -62,6 +62,17 @@ function renderWindow(startPage, endPage) {
   dom.filelist.innerHTML = `<div class="list-spacer" style="height:${topSpacer}px"></div>${rowsHtml}<div class="list-spacer" style="height:${bottomSpacer}px"></div>`;
 }
 
+export function updateLoadProgress() {
+  const spinner = dom.loadingSpinner;
+  if (!spinner) return;
+
+  const isLoading = state.isLoadingDirectory || state.loadingPages.size > 0;
+  spinner.hidden = !isLoading;
+  
+  // Update search spinner visibility
+  dom.searchSpinner.hidden = !(state.isApiLoading || state.loadingPages.size > 0);
+}
+
 export function rerenderVisibleWindow() {
   if (state.totalEntries === 0) {
     renderList();
@@ -69,6 +80,7 @@ export function rerenderVisibleWindow() {
   }
   const range = getPageRangeForScroll();
   renderWindow(range.start, range.end);
+  updateLoadProgress();
 }
 
 function createRowHtml(entry, index) {
@@ -121,11 +133,14 @@ export function updateFileCount() {
 
 export function renderList() {
   updateFileCount();
+  updateLoadProgress();
   
   // Show directory error if present
   if (state.directoryError) {
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
+    dom.emptyText.textContent = '';
+    dom.loadingProgress.hidden = true;
     dom.empty.innerHTML = `
       <div style="text-align: center;">
         <div style="margin-bottom: 10px; color: #ff6b6b;">${escHtml(state.directoryError.message)}</div>
@@ -153,7 +168,7 @@ export function renderList() {
   }
   
   if (state.totalEntries === 0) {
-    dom.empty.textContent = state.isLoadingDirectory ? 'Loading files...' : 'No audio files in this folder';
+    dom.emptyText.textContent = state.isLoadingDirectory ? 'Loading files...' : 'No audio files in this folder';
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
     return;
@@ -230,10 +245,38 @@ export function scrollToSelected() {
 }
 
 export function syncVisibleWindowToScroll() {
-  const scrollRange = getPageRangeForScroll();
+  const scrollTop = dom.filelist.scrollTop;
+  const scrollRange = getPageRangeForScroll(scrollTop);
 
   if (scrollRange.start !== state.visiblePageStart || scrollRange.end !== state.visiblePageEnd) {
-    renderWindow(scrollRange.start, scrollRange.end);
+    // Check if any visible page is not loaded - show loading indicator instead of blank space
+    let hasUnloadedVisiblePage = false;
+    for (let p = scrollRange.start; p <= scrollRange.end; p++) {
+      if (!state.loadedPages.has(p)) {
+        hasUnloadedVisiblePage = true;
+        break;
+      }
+    }
+
+    // Only re-render if we have content or are loading visible pages
+    if (hasUnloadedVisiblePage || state.loadingPages.size > 0) {
+      renderWindow(scrollRange.start, scrollRange.end);
+    } else {
+      // Just update the visible page range without re-rendering
+      state.visiblePageStart = scrollRange.start;
+      state.visiblePageEnd = scrollRange.end;
+    }
+
+    // Debounced prefetch - only trigger after scrolling stops
+    clearTimeout(state.scrollPrefetchTimer);
+    state.scrollPrefetchTimer = setTimeout(() => {
+      state.scrollPrefetchTimer = null;
+      for (let p = scrollRange.start; p <= scrollRange.end; p++) {
+        if (!state.loadedPages.has(p) && !state.loadingPages.has(p)) {
+          loadDirectoryPage(p);
+        }
+      }
+    }, 200);
   }
 }
 
