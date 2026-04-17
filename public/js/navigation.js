@@ -1,6 +1,7 @@
 import { state, dom } from './state.js';
 import { escPath, resolvePath, normalizePath } from './utils.js';
 import { renderList, scrollToSelected, prefetchVisiblePages, syncVisibleWindowToScroll, rerenderVisibleWindow, updateLoadProgress } from './filelist.js';
+import { stopPlayback } from './playback.js';
 
 const ROW_HEIGHT = 32;
 let resizeReloadTimer = null;
@@ -166,6 +167,12 @@ export async function loadDirectory(dir) {
   syncPageSize();
 
   const nextDir = dir || state.homeDir;
+
+  // Stop playback and clear audio when navigating to a new folder
+  if (state.currentDir && nextDir !== state.currentDir) {
+    stopPlayback();
+  }
+
   const token = state.listRequestToken + 1;
   state.listRequestToken = token;
   state.isLoadingDirectory = true;
@@ -181,7 +188,7 @@ export async function loadDirectory(dir) {
 
   try {
     const searchParam = searchQuery ? '&search=' + encodeURIComponent(searchQuery) : '';
-    const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) + 
+    const res = await fetch('/api/list?dir=' + encodeURIComponent(nextDir) +
       '&page=1&pageSize=' + state.pageSize +
       '&sort=' + state.sort +
       '&order=' + state.order +

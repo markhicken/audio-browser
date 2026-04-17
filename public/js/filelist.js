@@ -168,7 +168,13 @@ export function renderList() {
   }
   
   if (state.totalEntries === 0) {
-    dom.emptyText.textContent = state.isLoadingDirectory ? 'Loading files...' : 'No audio files in this folder';
+    if (state.isLoadingDirectory) {
+      // Still loading - show spinner and keep filelist visible for initial viewport population
+      dom.filelist.style.display = '';
+      dom.empty.style.display = 'none';
+      return;
+    }
+    dom.emptyText.textContent = 'No audio files in this folder';
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
     return;
@@ -334,12 +340,11 @@ export async function selectRow(index) {
 }
 
 export async function activateRow(index) {
-  const entry = await ensureEntryLoaded(index);
-  if (!entry) return;
-  if (entry.type === 'folder') {
-    state.selectedIndex = index;
-    import('./navigation.js').then(m => m.openSelected());
-  }
+  const entry = state.entries[index];
+  if (!entry || entry.type !== 'folder') return;
+
+  // Navigate immediately, don't wait for page load
+  import('./navigation.js').then(m => m.loadDirectory(resolvePath(entry.name)));
 }
 
 export async function selectWithDebounce(index) {

@@ -86,6 +86,10 @@ function probeDuration(filePath) {
 // Shared cache for durations and sizes
 const metadataCache = new Map(); // AbsolutePath -> { size, duration, mtimeMs }
 
+// Directory listing cache: key -> { mtime, folders, files }
+const dirListCache = new Map();
+const CACHE_TTL = 5000; // 5 seconds
+
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
   let nextIndex = 0;
@@ -158,90 +162,166 @@ app.get('/api/list', async (req, res) => {
     ? normalizedDir
     : path.resolve(normalizedDir);
 
-  let dirEntries;
-  try {
-    dirEntries = await fs.promises.readdir(resolved, { withFileTypes: true });
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.status(404).json({ error: 'Directory not found' });
+  // Build cache key including sort/search params for proper invalidation
+  const cacheKey = `${resolved}:${sort}:${order}:${searchQuery}`;
+
+  let folders, files, totalEntries;
+  const now = Date.now();
+
+  // Check cache first
+  const cached = dirListCache.get(resolved);
+  let isUnixRoot;
+  if (cached && (now - cached.timestamp) < CACHE_TTL) {
+    try {
+      const dirStat = await fs.promises.stat(resolved);
+      if (dirStat.mtimeMs === cached.mtime) {
+        // Cache hit - apply sort/filter from cache data
+        isUnixRoot = process.platform !== 'win32' && resolved === '/';
+        folders = cached.folders.filter(e => !searchQuery || e.name.toLowerCase().includes(searchQuery));
+        files = cached.files.filter(e => !searchQuery || e.name.toLowerCase().includes(searchQuery));
+
+        if (sort === 'size') {
+          await mapWithConcurrency(files, 32, async (file) => {
+            const filePath = path.join(resolved, file.name);
+            try {
+              const stat = await fs.promises.stat(filePath);
+              file.size = stat.size;
+              file.mtimeMs = stat.mtimeMs;
+            } catch {
+              file.size = 0;
+            }
+            return file;
+          });
+        }
+
+        const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+        folders.sort((a, b) => {
+          let cmp = nameCmp(a, b);
+          return order === 'desc' ? -cmp : cmp;
+        });
+
+        files.sort((a, b) => {
+          if (sort === 'size') {
+            return order === 'desc' ? b.size - a.size : a.size - b.size;
+          }
+          if (sort === 'ext') {
+            const extA = a.ext || '';
+            const extB = b.ext || '';
+            const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
+            if (cmp !== 0) return order === 'desc' ? -cmp : cmp;
+            return nameCmp(a, b);
+          }
+          let cmp = nameCmp(a, b);
+          return order === 'desc' ? -cmp : cmp;
+        });
+
+        const isUnixRoot = process.platform !== 'win32' && resolved === '/';
+        totalEntries = (isUnixRoot ? 0 : 1) + folders.length + files.length;
+      } else {
+        throw new Error('Directory changed');
+      }
+    } catch {
+      dirListCache.delete(resolved);
     }
-    return res.status(403).json({ error: 'Cannot read directory: ' + err.message });
   }
 
-  let folders = [];
-  let files = [];
+  // Cache miss - read and cache
+  if (folders === undefined) {
+    let dirEntries;
+    try {
+      dirEntries = await fs.promises.readdir(resolved, { withFileTypes: true });
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return res.status(404).json({ error: 'Directory not found' });
+      }
+      return res.status(403).json({ error: 'Cannot read directory: ' + err.message });
+    }
 
-  for (const entry of dirEntries) {
-    if (entry.name.startsWith('.')) continue; // skip hidden files
+    folders = [];
+    files = [];
 
-    if (entry.isDirectory()) {
-      folders.push({ name: entry.name, type: 'folder' });
-    } else if (entry.isFile()) {
-      const ext = path.extname(entry.name).toLowerCase();
-      if (AUDIO_EXTS.has(ext)) {
-        files.push({ name: entry.name, type: 'file', ext: ext.slice(1) });
+    for (const entry of dirEntries) {
+      if (entry.name.startsWith('.')) continue;
+
+      if (entry.isDirectory()) {
+        folders.push({ name: entry.name, type: 'folder' });
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (AUDIO_EXTS.has(ext)) {
+          files.push({ name: entry.name, type: 'file', ext: ext.slice(1) });
+        }
       }
     }
-  }
 
-  if (searchQuery) {
-    folders = folders.filter(entry => entry.name.toLowerCase().includes(searchQuery));
-    files = files.filter(entry => entry.name.toLowerCase().includes(searchQuery));
-  }
+    // Cache the base list
+    try {
+      const dirStat = await fs.promises.stat(resolved);
+      dirListCache.set(resolved, {
+        timestamp: now,
+        mtime: dirStat.mtimeMs,
+        folders: JSON.parse(JSON.stringify(folders)),
+        files: JSON.parse(JSON.stringify(files))
+      });
+    } catch {}
 
-  // Pre-calculate stats if sorting by size
-  if (sort === 'size') {
-    await mapWithConcurrency(files, 32, async (file) => {
-      const filePath = path.join(resolved, file.name);
-      try {
-        const stat = await fs.promises.stat(filePath);
-        file.size = stat.size;
-        file.mtimeMs = stat.mtimeMs;
-      } catch {
-        file.size = 0;
-      }
-      return file;
-    });
-  }
+    if (searchQuery) {
+      folders = folders.filter(entry => entry.name.toLowerCase().includes(searchQuery));
+      files = files.filter(entry => entry.name.toLowerCase().includes(searchQuery));
+    }
 
-  const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  
-  folders.sort((a, b) => {
-    let cmp = nameCmp(a, b);
-    return order === 'desc' ? -cmp : cmp;
-  });
-
-  files.sort((a, b) => {
+    // Pre-calculate stats if sorting by size
     if (sort === 'size') {
-      return order === 'desc' ? b.size - a.size : a.size - b.size;
+      await mapWithConcurrency(files, 32, async (file) => {
+        const filePath = path.join(resolved, file.name);
+        try {
+          const stat = await fs.promises.stat(filePath);
+          file.size = stat.size;
+          file.mtimeMs = stat.mtimeMs;
+        } catch {
+          file.size = 0;
+        }
+        return file;
+      });
     }
-    if (sort === 'ext') {
-      const extA = a.ext || '';
-      const extB = b.ext || '';
-      const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
-      if (cmp !== 0) {
-        return order === 'desc' ? -cmp : cmp;
-      }
-      return nameCmp(a, b);
-    }
-    // Default to name
-    let cmp = nameCmp(a, b);
-    return order === 'desc' ? -cmp : cmp;
-  });
 
+    const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+    folders.sort((a, b) => {
+      let cmp = nameCmp(a, b);
+      return order === 'desc' ? -cmp : cmp;
+    });
+
+    files.sort((a, b) => {
+      if (sort === 'size') {
+        return order === 'desc' ? b.size - a.size : a.size - b.size;
+      }
+      if (sort === 'ext') {
+        const extA = a.ext || '';
+        const extB = b.ext || '';
+        const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
+        if (cmp !== 0) return order === 'desc' ? -cmp : cmp;
+        return nameCmp(a, b);
+      }
+      let cmp = nameCmp(a, b);
+      return order === 'desc' ? -cmp : cmp;
+    });
+
+    const isUnixRoot = process.platform !== 'win32' && resolved === '/';
+    totalEntries = (isUnixRoot ? 0 : 1) + folders.length + files.length;
+  }
+
+  // Build entries array and paginate
   const entries = [];
-  // Show .. parent folder except at Unix filesystem root (/)
-  // Windows drive roots (C:\, D:\) should still show .. to go back to drives list
-  const isUnixRoot = process.platform !== 'win32' && resolved === '/';
   if (!isUnixRoot) {
     entries.push({ name: '..', type: 'folder' });
   }
   entries.push(...folders, ...files);
 
-  const totalEntries = entries.length;
-  const start = Math.min((page - 1) * pageSize, totalEntries);
+  const start = (page - 1) * pageSize;
   const pageEntries = entries.slice(start, start + pageSize);
 
+  // Hydrate files with size/duration (only for visible page)
   const hydratedEntries = await mapWithConcurrency(pageEntries, 8, async (entry) => {
     if (entry.type !== 'file') return entry;
 

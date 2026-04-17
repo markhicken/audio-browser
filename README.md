@@ -9,12 +9,14 @@ An audio file browser designed for quick review of massive folders of audio file
 
 - Browse local audio files with support for multiple formats (WAV, MP3, AIFF, FLAC, OGG, M4A, AAC, WMA, OPUS, APE, WV)
 - Automatic transcoding for unsupported formats using FFmpeg
-- Fast directory listing with pagination for large folders (up to 500 items per page)
+- Fast directory listing with pagination for very large folders
 - Real-time search functionality to find files quickly
 - Sorting by name, size, or file type
 - Built-in audio player with auto-play next feature
 - Keyboard shortcuts for efficient navigation
 - Context menu for some basic file operations
+- Convert all to WAV
+- Normalize all (normalizes peak volume across all files)
 
 ## Getting Started
 
