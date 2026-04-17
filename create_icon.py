@@ -7,9 +7,9 @@ draw = ImageDraw.Draw(img)
 
 # ===== Color Definitions =====
 speaker_fill_color = (255, 255, 255, 255)  # White
-speaker_stroke_color = (230, 230, 230, 255)  # White
+speaker_stroke_color = (240, 240, 240, 255)  # Light gray
 cone_color = (60, 60, 60, 255)        # Dark gray
-highlight_color = (40, 40, 40, 255)   # Very dark gray
+dome_color = (240, 240, 240, 255)  # Light gray
 
 # ===== Cabinet =====
 cabinet_stroke_color = speaker_stroke_color
@@ -51,7 +51,7 @@ draw.ellipse((tweeter_center[0] - tweeter_radius, tweeter_center[1] - tweeter_ra
 # Tweeter center dome
 draw.ellipse((tweeter_center[0] - tweeter_dome_radius, tweeter_center[1] - tweeter_dome_radius,
               tweeter_center[0] + tweeter_dome_radius, tweeter_center[1] + tweeter_dome_radius),
-             fill=highlight_color, outline=tweeter_dome_stroke_color, width=tweeter_dome_stroke_width)
+             fill=dome_color, outline=tweeter_dome_stroke_color, width=tweeter_dome_stroke_width)
 
 # Large woofer (speaker cone)
 draw.ellipse((woofer_center[0] - woofer_radius, woofer_center[1] - woofer_radius,
@@ -61,7 +61,7 @@ draw.ellipse((woofer_center[0] - woofer_radius, woofer_center[1] - woofer_radius
 # Woofer center dome
 draw.ellipse((woofer_center[0] - woofer_dome_radius, woofer_center[1] - woofer_dome_radius,
               woofer_center[0] + woofer_dome_radius, woofer_center[1] + woofer_dome_radius),
-             fill=highlight_color, outline=woofer_dome_stroke_color, width=woofer_dome_stroke_width)
+             fill=dome_color, outline=woofer_dome_stroke_color, width=woofer_dome_stroke_width)
 
 # Save the image
 img.save('assets/icon.png')
@@ -69,5 +69,8 @@ img.save('assets/icon.png')
 # Convert to ICO
 img_ico = Image.open('assets/icon.png')
 img_ico.save('assets/icon.ico', format='ICO', sizes=[(16,16), (32,32), (48,48), (64,64), (128,128), (256,256)])
+
+# Convert to ICNS for Mac
+img.save('assets/icon.icns', format='ICNS')
 
 print("Icon created successfully!")

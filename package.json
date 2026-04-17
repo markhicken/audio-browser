@@ -19,9 +19,10 @@
     "trash": "^10.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14",
     "electron": "^25.0.0",
-    "electron-builder": "^24.0.0"
+    "electron-builder": "^24.0.0",
+    "nodemon": "^3.1.14",
+    "rcedit": "^5.0.2"
   },
   "build": {
     "appId": "com.audiobrowser.app",
@@ -37,7 +38,8 @@
       "icon": "assets/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "assets/icon.icns"
     },
     "linux": {
       "target": "AppImage"
