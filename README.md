@@ -29,10 +29,11 @@ An audio file browser designed for quick review of massive folders of audio file
 - **Direct playback**: WAV, MP3, FLAC, OGG, M4A, AAC, OPUS
 - **Transcoded playback** (requires FFmpeg): AIFF, WMA, APE, WV
 
-## Development
+## Development & Build
 
 - `npm start`: Start the production server
 - `npm run dev`: Start the development server with auto-reload
+- `npm run build-all`: Build for Win, Mac, Linux (see ./dist folder)
 
 ## License
 
