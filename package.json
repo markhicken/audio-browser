@@ -33,7 +33,8 @@
     "asar": true,
     "compression": "maximum",
     "win": {
-      "target": "portable"
+      "target": "portable",
+      "icon": "assets/icon.ico"
     },
     "mac": {
       "target": "dmg"
