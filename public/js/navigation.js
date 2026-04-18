@@ -173,6 +173,12 @@ export async function loadDirectory(dir) {
     stopPlayback();
   }
 
+  // Reset search query only when navigating to a different directory
+  if (nextDir !== state.currentDir) {
+    state.searchQuery = '';
+    dom.searchInput.value = '';
+  }
+
   const token = state.listRequestToken + 1;
   state.listRequestToken = token;
   state.isLoadingDirectory = true;
