@@ -128,7 +128,7 @@ export function updateFileCount() {
   const parts = [];
   if (files) parts.push(files + ' file' + (files !== 1 ? 's' : ''));
   if (folders) parts.push(folders + ' folder' + (folders !== 1 ? 's' : ''));
-  dom.fileCount.textContent = parts.join(', ') || 'Empty folder';
+  dom.fileCount.textContent = parts.join(', ') || 'No results';
 }
 
 export function renderList() {
@@ -169,9 +169,15 @@ export function renderList() {
   
   if (state.totalEntries === 0) {
     if (state.isLoadingDirectory) {
-      // Still loading - show spinner and keep filelist visible for initial viewport population
+      // Still loading - show placeholders and spinner
       dom.filelist.style.display = '';
       dom.empty.style.display = 'none';
+      const range = getPageRangeForIndex(-1); // Show first page
+      // Temporarily set totalEntries to show placeholders
+      const originalTotal = state.totalEntries;
+      state.totalEntries = state.pageSize;
+      renderWindow(range.start, range.end);
+      state.totalEntries = originalTotal;
       return;
     }
     dom.emptyText.textContent = 'No audio files in this folder';
@@ -255,23 +261,8 @@ export function syncVisibleWindowToScroll() {
   const scrollRange = getPageRangeForScroll(scrollTop);
 
   if (scrollRange.start !== state.visiblePageStart || scrollRange.end !== state.visiblePageEnd) {
-    // Check if any visible page is not loaded - show loading indicator instead of blank space
-    let hasUnloadedVisiblePage = false;
-    for (let p = scrollRange.start; p <= scrollRange.end; p++) {
-      if (!state.loadedPages.has(p)) {
-        hasUnloadedVisiblePage = true;
-        break;
-      }
-    }
-
-    // Only re-render if we have content or are loading visible pages
-    if (hasUnloadedVisiblePage || state.loadingPages.size > 0) {
-      renderWindow(scrollRange.start, scrollRange.end);
-    } else {
-      // Just update the visible page range without re-rendering
-      state.visiblePageStart = scrollRange.start;
-      state.visiblePageEnd = scrollRange.end;
-    }
+    // Always re-render when visible window changes to ensure correct DOM structure and spacing
+    renderWindow(scrollRange.start, scrollRange.end);
 
     // Debounced prefetch - only trigger after scrolling stops
     clearTimeout(state.scrollPrefetchTimer);
