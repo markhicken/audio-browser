@@ -188,6 +188,14 @@ export async function loadDirectory(dir) {
   state.currentDir = nextDir;
   state.directoryError = null; // Clear any previous error
   resetDirectoryState();
+
+  const isAtDrivesList = nextDir === '///drives';
+  const isAtDriveRoot = /^[a-z]:\/?$/i.test(nextDir);
+  const isAtUnixRoot = nextDir === '/';
+  if (!isAtDrivesList && !isAtDriveRoot && !isAtUnixRoot) {
+    state.totalEntries = 1;
+  }
+
   renderBreadcrumbs();
   renderList();
 
@@ -273,7 +281,11 @@ export async function loadDirectory(dir) {
 }
 
 export async function ensureEntryLoaded(index) {
-  if (index < 0 || index >= state.entries.length) return null;
+  if (index < 0) return null;
+  if (index === 0 && state.currentDir && state.currentDir !== '///drives' && !/^[a-z]:\/?$/i.test(state.currentDir) && state.currentDir !== '/') {
+    return { name: '..', type: 'folder' };
+  }
+  if (index >= state.entries.length) return null;
   if (state.entries[index]) return state.entries[index];
 
   const page = Math.floor(index / state.pageSize) + 1;

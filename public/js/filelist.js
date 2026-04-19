@@ -188,7 +188,7 @@ export function renderList() {
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
     dom.emptyText.textContent = '';
-    dom.loadingProgress.hidden = true;
+    dom.loadingSpinner.hidden = true;
     dom.empty.innerHTML = `
       <div style="text-align: center;">
         <div style="margin-bottom: 10px; color: #ff6b6b;">${escHtml(state.directoryError.message)}</div>
@@ -387,8 +387,23 @@ export async function activateRow(index) {
   }
   if (!entry || entry.type !== 'folder') return;
 
+  let nextPath;
+  
+  // Special case: when at drives list, navigate directly to the drive
+  if (state.currentDir === '///drives') {
+    nextPath = entry.name;
+  } 
+  // Special case: parent from drive root should go to drives list
+  else if (entry.name === '..' && /^[a-z]:\/?$/i.test(state.currentDir)) {
+    nextPath = '///drives';
+  }
+  // Normal case: append to current path
+  else {
+    nextPath = resolvePath(entry.name);
+  }
+
   // Navigate immediately, don't wait for page load
-  import('./navigation.js').then(m => m.loadDirectory(resolvePath(entry.name)));
+  import('./navigation.js').then(m => m.loadDirectory(nextPath));
 }
 
 export async function selectWithDebounce(index) {
