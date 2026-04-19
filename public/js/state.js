@@ -33,6 +33,7 @@ export const state = {
 export const dom = {
   audio: document.getElementById('audio'),
   filelist: document.getElementById('filelist'),
+  fileRows: document.getElementById('file-rows'),
   breadcrumbs: document.getElementById('breadcrumbs'),
   warning: document.getElementById('warning'),
   empty: document.getElementById('empty'),

@@ -35,6 +35,7 @@ body {
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   flex-shrink: 0;
@@ -81,11 +82,22 @@ body {
 }
 #app-title:hover { color: var(--accent-bright); }
 
+#header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* === Breadcrumbs === */
 #breadcrumbs {
   font-size: 12px;
-  white-space: nowrap;
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-left: 4px;
 }
 #breadcrumbs span {
   color: var(--text-secondary);
@@ -125,11 +137,18 @@ body {
 .search-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid var(--progress-bg);
+  border: 2px solid rgba(255,255,255,0.15);
   border-top: 2px solid var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  flex-shrink: 0;
+  position: fixed;
+  bottom: 112px; /* position above status bar and transport bar */
+  right: 15px;
+  z-index: 10;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
+  padding: 4px;
 }
 
 /* === Warning Banner === */
@@ -152,6 +171,7 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  position: relative;
 }
 #filelist:focus { outline: none; }
 

@@ -88,7 +88,62 @@ const metadataCache = new Map(); // AbsolutePath -> { size, duration, mtimeMs }
 
 // Directory listing cache: key -> { mtime, folders, files }
 const dirListCache = new Map();
-const CACHE_TTL = 5000; // 5 seconds
+
+// File size cache: AbsolutePath -> { size, mtimeMs }
+const fileSizeCache = new Map();
+
+// Get file stats with caching (mtime validation only)
+async function getFileStatsWithCache(filePath) {
+  const cached = fileSizeCache.get(filePath);
+
+  if (cached) {
+    try {
+      const stat = await fs.promises.stat(filePath);
+      if (stat.mtimeMs === cached.mtimeMs) {
+        return { size: cached.size, mtimeMs: cached.mtimeMs };
+      }
+    } catch {
+      fileSizeCache.delete(filePath);
+    }
+  }
+
+  // Cache miss or stale - fetch fresh
+  try {
+    const stat = await fs.promises.stat(filePath);
+    fileSizeCache.set(filePath, {
+      size: stat.size,
+      mtimeMs: stat.mtimeMs
+    });
+    return { size: stat.size, mtimeMs: stat.mtimeMs };
+  } catch {
+    return { size: 0, mtimeMs: 0 };
+  }
+}
+
+// Sort folders and files by the specified criterion
+function sortFolderAndFiles(folders, files, sort, order) {
+  const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+
+  folders.sort((a, b) => {
+    let cmp = nameCmp(a, b);
+    return order === 'desc' ? -cmp : cmp;
+  });
+
+  files.sort((a, b) => {
+    if (sort === 'size') {
+      return order === 'desc' ? b.size - a.size : a.size - b.size;
+    }
+    if (sort === 'ext') {
+      const extA = a.ext || '';
+      const extB = b.ext || '';
+      const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
+      if (cmp !== 0) return order === 'desc' ? -cmp : cmp;
+      return nameCmp(a, b);
+    }
+    let cmp = nameCmp(a, b);
+    return order === 'desc' ? -cmp : cmp;
+  });
+}
 
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
@@ -162,61 +217,34 @@ app.get('/api/list', async (req, res) => {
     ? normalizedDir
     : path.resolve(normalizedDir);
 
-  // Build cache key including sort/search params for proper invalidation
-  const cacheKey = `${resolved}:${sort}:${order}:${searchQuery}`;
-
+  const isUnixRoot = process.platform !== 'win32' && resolved === '/';
   let folders, files, totalEntries;
-  const now = Date.now();
 
   // Check cache first
   const cached = dirListCache.get(resolved);
-  let isUnixRoot;
-  if (cached && (now - cached.timestamp) < CACHE_TTL) {
+  if (cached) {
     try {
       const dirStat = await fs.promises.stat(resolved);
       if (dirStat.mtimeMs === cached.mtime) {
         // Cache hit - apply sort/filter from cache data
-        isUnixRoot = process.platform !== 'win32' && resolved === '/';
-        folders = cached.folders.filter(e => !searchQuery || e.name.toLowerCase().includes(searchQuery));
-        files = cached.files.filter(e => !searchQuery || e.name.toLowerCase().includes(searchQuery));
+        folders = cached.folders.filter(e => !searchQuery || e.nameLower.includes(searchQuery));
+        files = cached.files.filter(e => !searchQuery || e.nameLower.includes(searchQuery));
 
         if (sort === 'size') {
-          await mapWithConcurrency(files, 32, async (file) => {
-            const filePath = path.join(resolved, file.name);
-            try {
-              const stat = await fs.promises.stat(filePath);
-              file.size = stat.size;
-              file.mtimeMs = stat.mtimeMs;
-            } catch {
-              file.size = 0;
-            }
-            return file;
-          });
+          // Only stat files that don't already have size cached
+          const filesToStat = files.filter(f => f.size === undefined);
+          if (filesToStat.length > 0) {
+            await mapWithConcurrency(filesToStat, 32, async (file) => {
+              const filePath = path.join(resolved, file.name);
+              const stats = await getFileStatsWithCache(filePath);
+              file.size = stats.size;
+              file.mtimeMs = stats.mtimeMs;
+              return file;
+            });
+          }
         }
 
-        const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-
-        folders.sort((a, b) => {
-          let cmp = nameCmp(a, b);
-          return order === 'desc' ? -cmp : cmp;
-        });
-
-        files.sort((a, b) => {
-          if (sort === 'size') {
-            return order === 'desc' ? b.size - a.size : a.size - b.size;
-          }
-          if (sort === 'ext') {
-            const extA = a.ext || '';
-            const extB = b.ext || '';
-            const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
-            if (cmp !== 0) return order === 'desc' ? -cmp : cmp;
-            return nameCmp(a, b);
-          }
-          let cmp = nameCmp(a, b);
-          return order === 'desc' ? -cmp : cmp;
-        });
-
-        const isUnixRoot = process.platform !== 'win32' && resolved === '/';
+        sortFolderAndFiles(folders, files, sort, order);
         totalEntries = (isUnixRoot ? 0 : 1) + folders.length + files.length;
       } else {
         throw new Error('Directory changed');
@@ -244,12 +272,13 @@ app.get('/api/list', async (req, res) => {
     for (const entry of dirEntries) {
       if (entry.name.startsWith('.')) continue;
 
+      const nameLower = entry.name.toLowerCase();
       if (entry.isDirectory()) {
-        folders.push({ name: entry.name, type: 'folder' });
+        folders.push({ name: entry.name, type: 'folder', nameLower });
       } else if (entry.isFile()) {
         const ext = path.extname(entry.name).toLowerCase();
         if (AUDIO_EXTS.has(ext)) {
-          files.push({ name: entry.name, type: 'file', ext: ext.slice(1) });
+          files.push({ name: entry.name, type: 'file', ext: ext.slice(1), nameLower });
         }
       }
     }
@@ -258,56 +287,43 @@ app.get('/api/list', async (req, res) => {
     try {
       const dirStat = await fs.promises.stat(resolved);
       dirListCache.set(resolved, {
-        timestamp: now,
         mtime: dirStat.mtimeMs,
-        folders: JSON.parse(JSON.stringify(folders)),
-        files: JSON.parse(JSON.stringify(files))
+        folders: [...folders],
+        files: [...files]
       });
     } catch {}
 
     if (searchQuery) {
-      folders = folders.filter(entry => entry.name.toLowerCase().includes(searchQuery));
-      files = files.filter(entry => entry.name.toLowerCase().includes(searchQuery));
+      folders = folders.filter(entry => entry.nameLower.includes(searchQuery));
+      files = files.filter(entry => entry.nameLower.includes(searchQuery));
     }
 
     // Pre-calculate stats if sorting by size
     if (sort === 'size') {
       await mapWithConcurrency(files, 32, async (file) => {
         const filePath = path.join(resolved, file.name);
-        try {
-          const stat = await fs.promises.stat(filePath);
-          file.size = stat.size;
-          file.mtimeMs = stat.mtimeMs;
-        } catch {
-          file.size = 0;
-        }
+        const stats = await getFileStatsWithCache(filePath);
+        file.size = stats.size;
+        file.mtimeMs = stats.mtimeMs;
         return file;
       });
+      
+      // Update cache with stats so subsequent requests don't need to re-stat
+      const cachedEntry = dirListCache.get(resolved);
+      if (cachedEntry) {
+        // Create a map of files for quick lookup
+        const fileMap = new Map(files.map(f => [f.name, { size: f.size, mtimeMs: f.mtimeMs }]));
+        cachedEntry.files.forEach(f => {
+          const stats = fileMap.get(f.name);
+          if (stats) {
+            f.size = stats.size;
+            f.mtimeMs = stats.mtimeMs;
+          }
+        });
+      }
     }
 
-    const nameCmp = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-
-    folders.sort((a, b) => {
-      let cmp = nameCmp(a, b);
-      return order === 'desc' ? -cmp : cmp;
-    });
-
-    files.sort((a, b) => {
-      if (sort === 'size') {
-        return order === 'desc' ? b.size - a.size : a.size - b.size;
-      }
-      if (sort === 'ext') {
-        const extA = a.ext || '';
-        const extB = b.ext || '';
-        const cmp = extA.localeCompare(extB, undefined, { sensitivity: 'base' });
-        if (cmp !== 0) return order === 'desc' ? -cmp : cmp;
-        return nameCmp(a, b);
-      }
-      let cmp = nameCmp(a, b);
-      return order === 'desc' ? -cmp : cmp;
-    });
-
-    const isUnixRoot = process.platform !== 'win32' && resolved === '/';
+    sortFolderAndFiles(folders, files, sort, order);
     totalEntries = (isUnixRoot ? 0 : 1) + folders.length + files.length;
   }
 
@@ -330,13 +346,9 @@ app.get('/api/list', async (req, res) => {
     let mtimeMs = entry.mtimeMs;
 
     if (size === undefined) {
-      try {
-        const stat = await fs.promises.stat(filePath);
-        size = stat.size;
-        mtimeMs = stat.mtimeMs;
-      } catch {
-        size = 0;
-      }
+      const stats = await getFileStatsWithCache(filePath);
+      size = stats.size;
+      mtimeMs = stats.mtimeMs;
     }
 
     const cached = metadataCache.get(filePath);

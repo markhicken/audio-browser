@@ -59,7 +59,7 @@ function renderWindow(startPage, endPage) {
     }
   }
 
-  dom.filelist.innerHTML = `<div class="list-spacer" style="height:${topSpacer}px"></div>${rowsHtml}<div class="list-spacer" style="height:${bottomSpacer}px"></div>`;
+  dom.fileRows.innerHTML = `<div class="list-spacer" style="height:${topSpacer}px"></div>${rowsHtml}<div class="list-spacer" style="height:${bottomSpacer}px"></div>`;
 }
 
 export function updateLoadProgress() {
@@ -113,10 +113,10 @@ function createPlaceholderRows(start, end) {
   for (let index = start; index < end; index++) {
     html += `<div class="row row-placeholder" data-index="${index}">
       <span class="row-icon"></span>
-      <span class="row-name">Loading...</span>
+      <span class="row-name">...</span>
       <span class="row-badge"></span>
-      <span class="row-duration"></span>
-      <span class="row-size"></span>
+      <span class="row-duration">--:--</span>
+      <span class="row-size">--</span>
     </div>`;
   }
   return html;

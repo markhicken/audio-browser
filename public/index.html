@@ -27,7 +27,6 @@
   <!-- Filename search -->
   <div id="search-bar">
     <input id="filename-search" type="search" placeholder="Search filenames..." autocomplete="off" spellcheck="false">
-    <div id="search-spinner" class="search-spinner" hidden></div>
   </div>
 
   <!-- Warning banner (shown when ffmpeg is missing) -->
@@ -43,7 +42,10 @@
     <span class="row-duration">Length</span>
     <span class="row-size sortable" data-sort="size">Size <span class="sort-indicator"></span></span>
   </div>
-  <div id="filelist" tabindex="0"></div>
+  <div id="filelist" tabindex="0">
+    <div id="search-spinner" class="search-spinner" hidden></div>
+    <div id="file-rows"></div>
+  </div>
   <div id="empty">
     <div id="empty-text">No audio files in this folder</div>
     <div id="loading-spinner" class="loading-spinner" hidden></div>
