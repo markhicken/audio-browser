@@ -218,7 +218,7 @@ app.get('/api/list', async (req, res) => {
     : path.resolve(normalizedDir);
 
   const isUnixRoot = process.platform !== 'win32' && resolved === '/';
-  let folders, files, totalEntries;
+  let folders, files, totalEntries, hiddenFiles = 0;
 
   // Check cache first
   const cached = dirListCache.get(resolved);
@@ -229,6 +229,7 @@ app.get('/api/list', async (req, res) => {
         // Cache hit - apply sort/filter from cache data
         folders = cached.folders.filter(e => !searchQuery || e.nameLower.includes(searchQuery));
         files = cached.files.filter(e => !searchQuery || e.nameLower.includes(searchQuery));
+        hiddenFiles = cached.hiddenFiles || 0;
 
         if (sort === 'size') {
           // Only stat files that don't already have size cached
@@ -279,6 +280,8 @@ app.get('/api/list', async (req, res) => {
         const ext = path.extname(entry.name).toLowerCase();
         if (AUDIO_EXTS.has(ext)) {
           files.push({ name: entry.name, type: 'file', ext: ext.slice(1), nameLower });
+        } else {
+          hiddenFiles += 1;
         }
       }
     }
@@ -289,7 +292,8 @@ app.get('/api/list', async (req, res) => {
       dirListCache.set(resolved, {
         mtime: dirStat.mtimeMs,
         folders: [...folders],
-        files: [...files]
+        files: [...files],
+        hiddenFiles
       });
     } catch {}
 
@@ -374,7 +378,8 @@ app.get('/api/list', async (req, res) => {
     hasMore: start + pageEntries.length < totalEntries,
     counts: {
       files: files.length,
-      folders: folders.length
+      folders: folders.length,
+      nonAudioFiles: hiddenFiles
     }
   });
 });

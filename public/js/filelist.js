@@ -3,8 +3,18 @@ import { fmtSize, fmtTime, escHtml, resolvePath } from './utils.js';
 import { playFile, stopPlayback } from './playback.js';
 import { ensureEntryLoaded, loadDirectoryPage, loadDirectory } from './navigation.js';
 
+const AUDIO_EXTENSIONS = ['wav', 'mp3', 'aiff', 'aif', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus', 'ape', 'wv'];
+const AUDIO_EXTENSIONS_TOOLTIP = `Supported audio types: ${AUDIO_EXTENSIONS.join(', ')}`;
 const ROW_HEIGHT = 32;
 const PAGE_WINDOW_RADIUS = 1; // Number of pages to load before/after visible page
+
+function audioFilesTooltipText() {
+  return `No <span class="audio-info" tabindex="0" title="${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}">audio files<span class="audio-info-tooltip">${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}</span></span> in this folder`;
+}
+
+function audioFilesCountText(count) {
+  return `${count} <span class="audio-info" tabindex="0" title="${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}">audio files<span class="audio-info-tooltip">${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}</span></span> found`;
+}
 
 function getFileCount() {
   return state.entryCounts.files || state.entries.filter(e => e?.type === 'file').length;
@@ -125,10 +135,24 @@ function createPlaceholderRows(start, end) {
 export function updateFileCount() {
   const files = getFileCount();
   const folders = getFolderCount();
+  const isParentOnly = state.totalEntries === 1 && files === 0 && folders === 0 && state.currentDir !== '///drives';
+
+  if (isParentOnly) {
+    dom.fileCount.innerHTML = state.otherFileCount > 0
+      ? `${audioFilesTooltipText()} · ${state.otherFileCount} non-audio ${state.otherFileCount === 1 ? 'file' : 'files'} found`
+      : audioFilesTooltipText();
+    return;
+  }
+
   const parts = [];
   if (files) parts.push(files + ' file' + (files !== 1 ? 's' : ''));
   if (folders) parts.push(folders + ' folder' + (folders !== 1 ? 's' : ''));
-  dom.fileCount.textContent = parts.join(', ') || 'No results';
+  const baseText = parts.join(', ') || 'No results';
+  if (files) {
+    dom.fileCount.innerHTML = audioFilesCountText(files);
+  } else {
+    dom.fileCount.textContent = baseText;
+  }
 }
 
 export function renderList() {
@@ -180,13 +204,15 @@ export function renderList() {
       state.totalEntries = originalTotal;
       return;
     }
-    dom.emptyText.textContent = 'No audio files in this folder';
+    dom.emptyText.innerHTML = state.otherFileCount > 0
+      ? `${audioFilesTooltipText()}.<br><strong>${state.otherFileCount} non-audio ${state.otherFileCount === 1 ? 'file' : 'files'}.</strong>`
+      : audioFilesTooltipText();
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
     return;
   }
 
-  dom.empty.textContent = 'No audio files in this folder';
+  dom.empty.innerHTML = audioFilesTooltipText();
   dom.filelist.style.display = '';
   dom.empty.style.display = 'none';
   const range = getPageRangeForIndex(state.selectedIndex);

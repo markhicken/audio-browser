@@ -641,6 +641,56 @@ body {
   gap: 12px;
 }
 
+ .audio-info {
+  position: relative;
+  text-decoration: underline dashed var(--text-secondary);
+  cursor: help;
+  user-select: text;
+}
+
+.audio-info:hover,
+.audio-info:focus {
+  color: var(--text-primary);
+}
+
+.audio-info-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  transform: translateX(0);
+  width: max-content;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 8px 10px;
+  box-sizing: border-box;
+  background: rgba(20, 25, 30, 0.96);
+  color: #f8f8f8;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  z-index: 10;
+}
+
+.audio-info:hover .audio-info-tooltip,
+.audio-info:focus .audio-info-tooltip {
+  display: block;
+}
+
+.audio-info-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  transform: translateX(0);
+  border: 6px solid transparent;
+  border-top-color: rgba(20, 25, 30, 0.96);
+}
+
 /* === Normalization Modal === */
 #norm-overlay {
   display: none;

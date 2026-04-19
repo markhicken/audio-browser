@@ -81,6 +81,7 @@ function resetDirectoryState() {
   state.totalEntries = 0;
   state.hasMoreEntries = false;
   state.entryCounts = { files: 0, folders: 0 };
+  state.otherFileCount = 0;
   state.loadedPages = new Set();
   state.loadingPages = new Set();
   state.visiblePageStart = 1;
@@ -104,6 +105,7 @@ function mergePage(data) {
   state.totalEntries = data.totalEntries;
   state.hasMoreEntries = data.hasMore;
   state.entryCounts = data.counts || state.entryCounts;
+  state.otherFileCount = data.counts?.nonAudioFiles ?? state.otherFileCount;
 }
 
 export async function loadDirectoryPage(page) {

@@ -12,6 +12,7 @@ export const state = {
   totalEntries: 0,
   hasMoreEntries: false,
   entryCounts: { files: 0, folders: 0 },
+  otherFileCount: 0,
   loadedPages: new Set(),
   loadingPages: new Set(),
   visiblePageStart: 1,
