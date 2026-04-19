@@ -5,6 +5,7 @@ import { ensureEntryLoaded } from './navigation.js';
 
 function updatePlayingClass() {
   dom.filelist.classList.toggle('audio-active', state.isAudioPlaying);
+  dom.transport.classList.toggle('audio-playing', !!state.playingFile);
 }
 
 export function playFile(entry, index = state.selectedIndex) {
@@ -31,7 +32,8 @@ export function stopPlayback() {
   state.isAudioPlaying = false;
   dom.playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,0 12,6 2,12" fill="currentColor"/></svg>';
   dom.transportName.textContent = 'No file selected';
-  dom.progressBar.style.width = '0%';
+  dom.progressSlider.value = 0;
+  updateProgressSliderFill(0);
   dom.transportTime.textContent = '0:00 / 0:00';
   updatePlayingRow(previousPath, null);
   updatePlayingClass();
@@ -60,7 +62,8 @@ export function initTransport() {
     if (isDragging) return; // Don't fight with drag
     if (dom.audio.duration) {
       const pct = (dom.audio.currentTime / dom.audio.duration) * 100;
-      dom.progressBar.style.width = pct + '%';
+      dom.progressSlider.value = pct;
+      updateProgressSliderFill(pct);
       dom.transportTime.textContent = fmtTime(dom.audio.currentTime) + ' / ' + fmtTime(dom.audio.duration);
     }
   });
@@ -78,45 +81,31 @@ export function initTransport() {
         }
       }
     }
-    const previousPath = state.playingFile;
-    state.playingFile = null;
+    // Don't clear playingFile when audio ends - keep the file selected
     state.isAudioPlaying = false;
     dom.playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2,0 12,6 2,12" fill="currentColor"/></svg>';
-    updatePlayingRow(previousPath, null);
     updatePlayingClass();
   });
 
-  // Seek on progress bar click / drag
-  function seekFromEvent(e) {
+  dom.progressSlider.addEventListener('input', () => {
     if (!dom.audio.duration) return;
-    const rect = dom.progressWrap.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    dom.progressBar.style.width = (pct * 100) + '%';
-    dom.transportTime.textContent = fmtTime(pct * dom.audio.duration) + ' / ' + fmtTime(dom.audio.duration);
-    return pct;
-  }
+    const pct = Number(dom.progressSlider.value);
+    const time = (pct / 100) * dom.audio.duration;
+    dom.transportTime.textContent = fmtTime(time) + ' / ' + fmtTime(dom.audio.duration);
+    updateProgressSliderFill(pct);
+    dom.audio.currentTime = time;
+  });
 
-  dom.progressWrap.addEventListener('mousedown', (e) => {
+  dom.progressSlider.addEventListener('mousedown', () => {
     if (!dom.audio.duration) return;
-    e.preventDefault();
     isDragging = true;
     dom.progressWrap.classList.add('dragging');
-    dom.progressBar.classList.add('no-transition');
-    seekFromEvent(e);
+  });
 
-    const onMove = (ev) => seekFromEvent(ev);
-    const onUp = (ev) => {
-      isDragging = false;
-      dom.progressWrap.classList.remove('dragging');
-      dom.progressBar.classList.remove('no-transition');
-      const pct = seekFromEvent(ev);
-      if (pct !== undefined) dom.audio.currentTime = pct * dom.audio.duration;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    dom.progressWrap.classList.remove('dragging');
   });
 
   // Play button click
@@ -171,6 +160,11 @@ export function initTransport() {
 function updateVolumeSliderFill(vol) {
   const pct = vol;
   dom.volumeSlider.style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--progress-bg) ${pct}%)`;
+}
+
+function updateProgressSliderFill(pct) {
+  dom.progressSlider.style.background =
     `linear-gradient(to right, var(--accent) ${pct}%, var(--progress-bg) ${pct}%)`;
 }
 

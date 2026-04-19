@@ -3,5 +3,6 @@
     ".claude/**",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "ext": "js,mjs,cjs,json,css,html"
 }

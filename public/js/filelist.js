@@ -16,6 +16,12 @@ function audioFilesCountText(count) {
   return `${count} <span class="audio-info" tabindex="0" title="${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}">audio files<span class="audio-info-tooltip">${escHtml(AUDIO_EXTENSIONS_TOOLTIP)}</span></span> found`;
 }
 
+function shouldShowParentFolder() {
+  const isAtDrivesList = state.currentDir === '///drives';
+  const isAtDriveRoot = /^[a-z]:\/?$/i.test(state.currentDir);
+  return !isAtDrivesList && !isAtDriveRoot;
+}
+
 function getFileCount() {
   return state.entryCounts.files || state.entries.filter(e => e?.type === 'file').length;
 }
@@ -61,11 +67,29 @@ function renderWindow(startPage, endPage) {
     const pageEnd = Math.min(pageStart + state.pageSize, state.totalEntries);
     if (state.loadedPages.has(page)) {
       for (let index = pageStart; index < pageEnd; index++) {
-        const entry = state.entries[index];
+        let entry = state.entries[index];
+        // Special case: always show parent folder at index 0 if applicable
+        if (index === 0 && !entry && shouldShowParentFolder()) {
+          entry = { name: '..', type: 'folder' };
+        }
         if (entry) rowsHtml += createRowHtml(entry, index);
       }
     } else {
-      rowsHtml += createPlaceholderRows(pageStart, pageEnd);
+      // For unloaded pages, show placeholders, but handle parent folder specially
+      for (let index = pageStart; index < pageEnd; index++) {
+        if (index === 0 && shouldShowParentFolder()) {
+          rowsHtml += createRowHtml({ name: '..', type: 'folder' }, index);
+        } else {
+          // Create a single placeholder row
+          rowsHtml += `<div class="row row-placeholder" data-index="${index}">
+            <span class="row-icon"></span>
+            <span class="row-name">...</span>
+            <span class="row-badge"></span>
+            <span class="row-duration">--:--</span>
+            <span class="row-size">--</span>
+          </div>`;
+        }
+      }
     }
   }
 
@@ -357,7 +381,10 @@ export async function selectRow(index) {
 }
 
 export async function activateRow(index) {
-  const entry = state.entries[index];
+  let entry = state.entries[index];
+  if (!entry && index === 0 && shouldShowParentFolder()) {
+    entry = { name: '..', type: 'folder' };
+  }
   if (!entry || entry.type !== 'folder') return;
 
   // Navigate immediately, don't wait for page load

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audio Browser</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=1">
 </head>
 
 <body>
@@ -78,7 +78,7 @@
       </svg></button>
     <span id="transport-name">No file selected</span>
     <div id="progress-wrap">
-      <div id="progress-bar"></div>
+      <input type="range" id="progress-slider" min="0" max="100" value="0" step="0.1">
     </div>
     <span id="transport-time">0:00 / 0:00</span>
     <div id="volume-control" title="Volume">

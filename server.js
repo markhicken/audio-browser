@@ -704,7 +704,15 @@ app.post('/api/convert-wav', async (req, res) => {
 });
 
 // Serve static files from public/ (after API routes)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 app.listen(PORT, () => {
   const url = `http://localhost:${PORT}`;

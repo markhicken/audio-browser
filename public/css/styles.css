@@ -1,4 +1,5 @@
 /* === Reset === */
+/* Force restart */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -477,59 +478,69 @@ body {
 
 #progress-wrap {
   flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+#transport.audio-playing #progress-wrap {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#progress-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
   height: 3px;
-  background: var(--progress-bg);
+  background: linear-gradient(to right, var(--accent) 100%, var(--progress-bg) 100%);
   border-radius: 2px;
+  outline: none;
   cursor: pointer;
-  position: relative;
-  /* Expand the clickable hit area without changing visual size */
-  padding: 8px 0;
-  background-clip: content-box;
-  margin: -8px 0;
-  transition: height 0.15s;
+  transition: opacity 0.15s;
+  padding: 0;
 }
-#progress-wrap:hover,
-#progress-wrap.dragging {
-  height: 5px;
-}
-#progress-bar {
-  height: 3px;
-  background: var(--accent);
-  border-radius: 2px;
-  width: 0%;
-  transition: width 0.1s linear;
-  position: absolute;
-  top: 8px;
-  left: 0;
-}
-#progress-wrap:hover #progress-bar,
-#progress-wrap.dragging #progress-bar {
-  height: 5px;
-}
-/* Drag thumb */
-#progress-bar::after {
-  content: '';
-  position: absolute;
-  right: -5px;
-  top: 50%;
-  transform: translateY(-50%) scale(0);
+
+#progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: var(--accent);
-  transition: transform 0.12s ease, background 0.15s;
-  pointer-events: none;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, transform 0.1s;
 }
-#progress-wrap:hover #progress-bar::after,
-#progress-wrap.dragging #progress-bar::after {
-  transform: translateY(-50%) scale(1);
-}
-#progress-wrap.dragging #progress-bar::after {
+#progress-slider::-webkit-slider-thumb:hover {
   background: var(--accent-bright);
-  transform: translateY(-50%) scale(1.25);
+  transform: scale(1.2);
 }
-#progress-bar.no-transition {
-  transition: none;
+#progress-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+#progress-slider::-moz-range-thumb:hover {
+  background: var(--accent-bright);
+}
+#progress-slider::-moz-range-track {
+  height: 3px;
+  background: var(--progress-bg);
+  border-radius: 2px;
+  border: none;
+}
+#progress-slider::-moz-range-progress {
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 #transport-time {
@@ -537,9 +548,14 @@ body {
   color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
-  width: 100px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#transport.audio-playing #transport-time {
+  opacity: 1;
 }
 
 /* === Auto-play Toggle === */
