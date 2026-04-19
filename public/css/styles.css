@@ -445,7 +445,8 @@ body {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  height: 44px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 #play-btn {
@@ -768,13 +769,41 @@ body {
   text-align: right;
 }
 
-/* === Keyboard Hints === */
-#hints {
+/* === Footer === */
+#footer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   font-size: 10px;
   color: var(--text-muted);
   padding: 4px 16px;
   background: var(--bg-tertiary);
+  justify-content: center;
+}
+/* === Keyboard Hints === */
+#hints {
   text-align: center;
-  flex-shrink: 0;
   letter-spacing: 0.2px;
+}
+#app-version {
+  text-align: center;
+  padding: 0 50px;
+}
+
+/* === Responsive Design === */
+/* Hide type column on narrow screens (iPhone, etc.) */
+@media (max-width: 480px) {
+  .header-ext,
+  .row-badge {
+    display: none;
+  }
+}
+
+/* === Responsive Design === */
+/* Hide type column on narrow screens (iPhone, etc.) */
+@media (max-width: 320px) {
+  .row-duration {
+    display: none;
+  }
 }

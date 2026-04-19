@@ -219,6 +219,22 @@ initTransport();
 initKeyboard();
 initContextMenu();
 
+async function loadAppVersion() {
+  try {
+    const res = await fetch('/api/version');
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById('app-version');
+    if (el && data.version) {
+      el.textContent = `v${data.version}`;
+    }
+  } catch {
+    // ignore if version endpoint is unavailable
+  }
+}
+
+loadAppVersion();
+
 // Boot
 async function init() {
   const res = await fetch('/api/home');

@@ -1,6 +1,6 @@
 {
   "name": "audio-browser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple local audio file browser with auto-play",
   "author": "Audio Browser <mark.hicken@gmail.com>",
   "main": "main.js",
@@ -8,6 +8,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "electron:start": "electron .",
+    "prebuild": "npm version patch --no-git-tag-version",
+    "prebuild-all": "npm version patch --no-git-tag-version",
     "build": "electron-builder",
     "build-win": "electron-builder --win",
     "build-mac": "electron-builder --mac",

@@ -55,6 +55,11 @@ app.get('/api/home', (req, res) => {
   res.json({ home: os.homedir(), ffmpeg: ffmpegAvailable });
 });
 
+const packageJson = require('./package.json');
+app.get('/api/version', (req, res) => {
+  res.json({ version: packageJson.version });
+});
+
 function probeDuration(filePath) {
   return new Promise((resolve) => {
     if (!ffmpegAvailable) {
