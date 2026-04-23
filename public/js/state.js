@@ -52,6 +52,8 @@ export const dom = {
   fileCount: document.getElementById('file-count'),
   volumeSlider: document.getElementById('volume-slider'),
   volumeIcon: document.getElementById('volume-icon'),
+  speedSlider: document.getElementById('speed-slider'),
+  speedLabel: document.getElementById('speed-label'),
   backBtn: document.getElementById('back-btn'),
   forwardBtn: document.getElementById('forward-btn')
 };

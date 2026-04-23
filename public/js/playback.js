@@ -15,6 +15,7 @@ export function playFile(entry, index = state.selectedIndex) {
   state.isAudioPlaying = true;
   dom.audio.src = '/api/audio?file=' + encodeURIComponent(filePath);
   dom.audio.load();
+  dom.audio.playbackRate = Number(dom.speedSlider.value);
   dom.audio.play().catch(() => {});
   dom.transportName.textContent = entry.name;
   dom.playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="3.5" height="10" rx="0.5" fill="currentColor"/><rect x="7.5" y="1" width="3.5" height="10" rx="0.5" fill="currentColor"/></svg>';
@@ -155,11 +156,41 @@ export function initTransport() {
       localStorage.setItem('audioBrowser_volume', restore);
     }
   });
+
+  // === Speed control ===
+  const savedSpeed = localStorage.getItem('audioBrowser_speed');
+  const initialSpeed = savedSpeed !== null ? Number(savedSpeed) : 1.0;
+  dom.speedSlider.value = initialSpeed;
+  dom.speedLabel.textContent = initialSpeed.toFixed(1) + '\u00d7';
+  dom.audio.playbackRate = initialSpeed;
+  updateSpeedSliderFill(initialSpeed);
+
+  dom.speedSlider.addEventListener('input', () => {
+    const speed = Number(dom.speedSlider.value);
+    dom.audio.playbackRate = speed;
+    dom.speedLabel.textContent = speed.toFixed(1) + '\u00d7';
+    localStorage.setItem('audioBrowser_speed', speed);
+    updateSpeedSliderFill(speed);
+  });
+
+  document.getElementById('speed-reset').addEventListener('click', () => {
+    dom.speedSlider.value = 1.0;
+    dom.audio.playbackRate = 1.0;
+    dom.speedLabel.textContent = '1.0\u00d7';
+    localStorage.setItem('audioBrowser_speed', 1.0);
+    updateSpeedSliderFill(1.0);
+  });
 }
 
 function updateVolumeSliderFill(vol) {
   const pct = vol;
   dom.volumeSlider.style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--progress-bg) ${pct}%)`;
+}
+
+function updateSpeedSliderFill(speed) {
+  const pct = ((speed - 0.5) / 2.0) * 100;
+  dom.speedSlider.style.background =
     `linear-gradient(to right, var(--accent) ${pct}%, var(--progress-bg) ${pct}%)`;
 }
 
