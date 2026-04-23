@@ -101,7 +101,7 @@ export function updateLoadProgress() {
   if (!spinner) return;
 
   const isLoading = state.isLoadingDirectory || state.loadingPages.size > 0;
-  spinner.hidden = !isLoading;
+  spinner.classList.toggle('visible', isLoading);
   
   // Update search spinner visibility
   dom.searchSpinner.hidden = !(state.isApiLoading || state.loadingPages.size > 0);
@@ -188,7 +188,7 @@ export function renderList() {
     dom.filelist.style.display = 'none';
     dom.empty.style.display = 'flex';
     dom.emptyText.textContent = '';
-    dom.loadingSpinner.hidden = true;
+    dom.loadingSpinner.classList.remove('visible');
     dom.empty.innerHTML = `
       <div style="text-align: center;">
         <div style="margin-bottom: 10px; color: #ff6b6b;">${escHtml(state.directoryError.message)}</div>
@@ -301,9 +301,6 @@ export function ensureIndexVisible(index) {
 export function scrollToSelected() {
   if (state.selectedIndex < 0) return;
   ensureIndexVisible(state.selectedIndex);
-
-  const row = dom.filelist.querySelector(`.row[data-index="${state.selectedIndex}"]`);
-  if (row) row.scrollIntoView({ block: 'nearest' });
 }
 
 export function syncVisibleWindowToScroll() {
