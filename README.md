@@ -15,7 +15,7 @@ An audio file browser designed for quick review of massive folders of audio file
 - Built-in audio player with auto-play next feature
 - Keyboard shortcuts for efficient navigation
 - Context menu for some basic file operations
-- Convert all to WAV
+- Convert all to WAV or MP3
 - Normalize all (normalizes peak volume across all files)
 
 ## Getting Started
