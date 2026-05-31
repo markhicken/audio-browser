@@ -475,6 +475,7 @@ app.delete('/api/file', async (req, res) => {
 // Shared batch operation progress state
 const jobState = {
   active: false,
+  cancelled: false,
   type: '',   // 'normalize' or 'convert'
   current: 0,
   total: 0,
@@ -484,9 +485,19 @@ const jobState = {
   results: null
 };
 
+let currentFfmpegProc = null;
+
 // Get batch job status
 app.get('/api/job-status', (req, res) => {
   res.json({ ...jobState });
+});
+
+// Cancel running batch job
+app.post('/api/cancel-job', (req, res) => {
+  if (!jobState.active) return res.json({ ok: false });
+  jobState.cancelled = true;
+  if (currentFfmpegProc) { currentFfmpegProc.kill(); currentFfmpegProc = null; }
+  res.json({ ok: true });
 });
 
 // Generate timestamped backup folder name
@@ -522,6 +533,7 @@ async function listAudioFiles(dirPath) {
 function runFfmpeg(args, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    currentFfmpegProc = proc;
     let stderr = '';
     let done = false;
     const timer = setTimeout(() => {
@@ -529,9 +541,11 @@ function runFfmpeg(args, timeoutMs = 60000) {
     }, timeoutMs);
     proc.stderr.on('data', d => { stderr += d; });
     proc.on('error', err => {
+      currentFfmpegProc = null;
       if (!done) { done = true; clearTimeout(timer); reject(err); }
     });
     proc.on('close', code => {
+      currentFfmpegProc = null;
       if (!done) { done = true; clearTimeout(timer); resolve({ code, stderr }); }
     });
   });
@@ -555,6 +569,21 @@ async function applyGain(inputPath, outputPath, gainDb) {
   if (code !== 0) throw new Error(stderr.slice(-200));
 }
 
+app.post('/api/open-folder', (req, res) => {
+  const dir = req.query.dir;
+  if (!dir) return res.status(400).json({ error: 'dir parameter required' });
+
+  const resolved = path.resolve(dir);
+  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Directory not found' });
+
+  const platform = process.platform;
+  const cmd = platform === 'win32' ? 'explorer' : platform === 'darwin' ? 'open' : 'xdg-open';
+  const child = spawn(cmd, [resolved], { detached: true, stdio: 'ignore' });
+  child.unref();
+
+  res.json({ ok: true });
+});
+
 // Validate and prepare a batch job, returns { resolved, audioFiles } or sends error response
 async function prepareBatchJob(req, res) {
   const dir = req.query.dir;
@@ -575,6 +604,7 @@ async function prepareBatchJob(req, res) {
 
 function startJob(type, total) {
   jobState.active = true;
+  jobState.cancelled = false;
   jobState.type = type;
   jobState.current = 0;
   jobState.total = total;
@@ -596,6 +626,7 @@ app.post('/api/normalize', async (req, res) => {
   const job = await prepareBatchJob(req, res);
   if (!job) return;
   const { resolved, audioFiles } = job;
+  const backup = req.query.backup === 'true';
 
   startJob('normalize', audioFiles.length);
   res.json({ started: true, total: audioFiles.length });
@@ -605,45 +636,53 @@ app.post('/api/normalize', async (req, res) => {
     const results = [];
 
     try {
-      await backupFiles(resolved, audioFiles, 'before_normalization');
+      if (backup) await backupFiles(resolved, audioFiles, 'before_normalization');
 
       // Pass 1: detect peaks
       jobState.phase = 'analyzing';
       const peaks = [];
       for (let i = 0; i < audioFiles.length; i++) {
+        if (jobState.cancelled) break;
         jobState.current = i + 1;
         jobState.currentFile = audioFiles[i];
         try {
           const peak = await detectPeak(path.join(resolved, audioFiles[i]));
+          if (jobState.cancelled) break;
           peaks.push({ name: audioFiles[i], peak });
         } catch (err) {
+          if (jobState.cancelled) break;
           peaks.push({ name: audioFiles[i], peak: null, error: err.message });
         }
       }
 
       // Pass 2: apply gain
-      jobState.phase = 'normalizing';
-      for (let i = 0; i < peaks.length; i++) {
-        const { name, peak, error } = peaks[i];
-        jobState.current = i + 1;
-        jobState.currentFile = name;
+      if (!jobState.cancelled) {
+        jobState.phase = 'normalizing';
+        for (let i = 0; i < peaks.length; i++) {
+          if (jobState.cancelled) break;
+          const { name, peak, error } = peaks[i];
+          jobState.current = i + 1;
+          jobState.currentFile = name;
 
-        if (peak === null) { results.push({ name, ok: false, error }); continue; }
+          if (peak === null) { results.push({ name, ok: false, error }); continue; }
 
-        const gain = TARGET_PEAK - peak;
-        if (Math.abs(gain) < 0.1) { results.push({ name, ok: true, gain: 0 }); continue; }
+          const gain = TARGET_PEAK - peak;
+          if (Math.abs(gain) < 0.1) { results.push({ name, ok: true, gain: 0 }); continue; }
 
-        const src = path.join(resolved, name);
-        const ext = path.extname(name).toLowerCase();
-        const tmpFile = src + '.normalized' + ext;
+          const src = path.join(resolved, name);
+          const ext = path.extname(name).toLowerCase();
+          const tmpFile = src + '.normalized' + ext;
 
-        try {
-          await applyGain(src, tmpFile, gain);
-          await fs.promises.rename(tmpFile, src);
-          results.push({ name, ok: true, gain: Math.round(gain * 10) / 10 });
-        } catch (err) {
-          try { await fs.promises.unlink(tmpFile); } catch {}
-          results.push({ name, ok: false, error: err.message });
+          try {
+            await applyGain(src, tmpFile, gain);
+            if (jobState.cancelled) { try { await fs.promises.unlink(tmpFile); } catch {} break; }
+            await fs.promises.rename(tmpFile, src);
+            results.push({ name, ok: true, gain: Math.round(gain * 10) / 10 });
+          } catch (err) {
+            try { await fs.promises.unlink(tmpFile); } catch {}
+            if (jobState.cancelled) break;
+            results.push({ name, ok: false, error: err.message });
+          }
         }
       }
 
@@ -659,8 +698,9 @@ app.post('/api/convert-wav', async (req, res) => {
   const job = await prepareBatchJob(req, res);
   if (!job) return;
   const { resolved, audioFiles } = job;
+  const keepOriginals = req.query.keepOriginals === 'true';
+  const backup = req.query.backup === 'true';
 
-  // Filter to non-WAV files
   const toConvert = audioFiles.filter(f => path.extname(f).toLowerCase() !== '.wav');
   if (toConvert.length === 0) {
     return res.status(400).json({ error: 'All files are already WAV' });
@@ -673,10 +713,11 @@ app.post('/api/convert-wav', async (req, res) => {
     const results = [];
 
     try {
-      await backupFiles(resolved, toConvert, 'before_conversion');
+      if (backup) await backupFiles(resolved, toConvert, 'before_conversion');
 
       jobState.phase = 'converting';
       for (let i = 0; i < toConvert.length; i++) {
+        if (jobState.cancelled) break;
         const name = toConvert[i];
         jobState.current = i + 1;
         jobState.currentFile = name;
@@ -685,18 +726,83 @@ app.post('/api/convert-wav', async (req, res) => {
         const baseName = path.basename(name, path.extname(name));
         const wavFile = path.join(resolved, baseName + '.wav');
 
+        if (fs.existsSync(wavFile)) {
+          results.push({ name, ok: true, skipped: true });
+          continue;
+        }
+
         try {
           const { code, stderr } = await runFfmpeg([
             '-y', '-i', src, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', wavFile
           ]);
+          if (jobState.cancelled) { try { await fs.promises.unlink(wavFile); } catch {} break; }
           if (code !== 0) throw new Error(stderr.slice(-200));
 
-          // Remove original non-WAV file
-          await fs.promises.unlink(src);
+          if (!keepOriginals) await fs.promises.unlink(src);
           results.push({ name, ok: true });
         } catch (err) {
-          // Clean up partial WAV if it exists
+          if (jobState.cancelled) break;
           try { await fs.promises.unlink(wavFile); } catch {}
+          results.push({ name, ok: false, error: err.message });
+        }
+      }
+
+      finishJob(results);
+    } catch (err) {
+      finishJob(null, err.message);
+    }
+  })();
+});
+
+app.post('/api/convert-mp3', async (req, res) => {
+  const job = await prepareBatchJob(req, res);
+  if (!job) return;
+  const { resolved, audioFiles } = job;
+  const keepOriginals = req.query.keepOriginals === 'true';
+  const backup = req.query.backup === 'true';
+
+  const toConvert = audioFiles.filter(f => path.extname(f).toLowerCase() !== '.mp3');
+  if (toConvert.length === 0) {
+    return res.status(400).json({ error: 'All files are already MP3' });
+  }
+
+  startJob('convert', toConvert.length);
+  res.json({ started: true, total: toConvert.length });
+
+  (async () => {
+    const results = [];
+
+    try {
+      if (backup) await backupFiles(resolved, toConvert, 'before_conversion');
+
+      jobState.phase = 'converting';
+      for (let i = 0; i < toConvert.length; i++) {
+        if (jobState.cancelled) break;
+        const name = toConvert[i];
+        jobState.current = i + 1;
+        jobState.currentFile = name;
+
+        const src = path.join(resolved, name);
+        const baseName = path.basename(name, path.extname(name));
+        const mp3File = path.join(resolved, baseName + '.mp3');
+
+        if (fs.existsSync(mp3File)) {
+          results.push({ name, ok: true, skipped: true });
+          continue;
+        }
+
+        try {
+          const { code, stderr } = await runFfmpeg([
+            '-y', '-i', src, '-codec:a', 'libmp3lame', '-b:a', '320k', '-ac', '2', mp3File
+          ]);
+          if (jobState.cancelled) { try { await fs.promises.unlink(mp3File); } catch {} break; }
+          if (code !== 0) throw new Error(stderr.slice(-200));
+
+          if (!keepOriginals) await fs.promises.unlink(src);
+          results.push({ name, ok: true });
+        } catch (err) {
+          if (jobState.cancelled) break;
+          try { await fs.promises.unlink(mp3File); } catch {}
           results.push({ name, ok: false, error: err.message });
         }
       }

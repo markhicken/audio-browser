@@ -69,23 +69,26 @@ const btnActions = document.getElementById('btn-actions');
 const actionsMenu = document.getElementById('actions-menu');
 const btnNormalize = document.getElementById('btn-normalize');
 const btnConvertWav = document.getElementById('btn-convert-wav');
+const btnConvertMp3 = document.getElementById('btn-convert-mp3');
 const overlay = document.getElementById('norm-overlay');
 const dlgTitle = document.getElementById('norm-title');
 const dlgPhase = document.getElementById('norm-phase');
 const dlgFile = document.getElementById('norm-file');
 const dlgBar = document.getElementById('norm-progress-bar');
 const dlgCount = document.getElementById('norm-count');
+const dlgResult = document.getElementById('norm-result');
+const dlgClose = document.getElementById('norm-close');
 
 const PHASE_LABELS = {
   backup: 'Backing up files',
   analyzing: 'Analyzing peak levels',
   normalizing: 'Applying normalization',
-  converting: 'Converting to WAV'
+  converting: 'Converting files'
 };
 
 const JOB_TITLES = {
   normalize: 'Normalizing Audio Levels',
-  convert: 'Converting to WAV'
+  convert: 'Converting Files'
 };
 
 function showModal(type) {
@@ -93,6 +96,7 @@ function showModal(type) {
   overlay.classList.add('visible');
   btnNormalize.disabled = true;
   btnConvertWav.disabled = true;
+  btnConvertMp3.disabled = true;
   btnActions.disabled = true;
 }
 
@@ -100,8 +104,115 @@ function hideModal() {
   overlay.classList.remove('visible');
   btnNormalize.disabled = false;
   btnConvertWav.disabled = false;
+  btnConvertMp3.disabled = false;
   btnActions.disabled = false;
   state.isApiLoading = false;
+}
+
+const convertConfirmOverlay = document.getElementById('convert-confirm-overlay');
+const convertConfirmMessage = document.getElementById('convert-confirm-message');
+const convertKeepOriginals = document.getElementById('convert-keep-originals');
+const convertBackupFiles = document.getElementById('convert-backup-files');
+const convertKeepLabel = document.getElementById('convert-keep-label');
+const convertBackupLabel = document.getElementById('convert-backup-label');
+const convertConfirmOk = document.getElementById('convert-confirm-ok');
+const convertConfirmCancel = document.getElementById('convert-confirm-cancel');
+
+function showActionConfirm(message, options = {}) {
+  return new Promise(resolve => {
+    convertConfirmMessage.textContent = message;
+    convertKeepLabel.hidden = !options.showKeepOption;
+    convertBackupLabel.hidden = !options.showBackupOption;
+    convertKeepOriginals.checked = true;
+    convertBackupFiles.checked = true;
+    convertConfirmOverlay.classList.add('visible');
+
+    function cleanup() {
+      convertConfirmOverlay.classList.remove('visible');
+      convertConfirmOk.removeEventListener('click', onOk);
+      convertConfirmCancel.removeEventListener('click', onCancel);
+    }
+    function onOk() {
+      cleanup();
+      resolve({
+        confirmed: true,
+        keepOriginals: options.showKeepOption ? convertKeepOriginals.checked : false,
+        backupFiles: options.showBackupOption ? convertBackupFiles.checked : false,
+      });
+    }
+    function onCancel() {
+      cleanup();
+      resolve({ confirmed: false });
+    }
+    convertConfirmOk.addEventListener('click', onOk);
+    convertConfirmCancel.addEventListener('click', onCancel);
+  });
+}
+
+let _modalResultShouldReload = false;
+let _jobRunning = false;
+
+function showCancelButton() {
+  _jobRunning = true;
+  dlgClose.textContent = 'Cancel';
+  dlgClose.disabled = false;
+  dlgClose.hidden = false;
+}
+
+dlgClose.addEventListener('click', async () => {
+  if (_jobRunning) {
+    dlgClose.disabled = true;
+    dlgClose.textContent = 'Cancelling…';
+    try { await fetch('/api/cancel-job', { method: 'POST' }); } catch {}
+    return;
+  }
+  _modalResultShouldReload = false;
+  dlgResult.hidden = true;
+  dlgClose.hidden = true;
+  dlgResult.textContent = '';
+  dlgClose.disabled = false;
+  hideModal();
+});
+
+function showModalResult(data, shouldReload = false) {
+  _jobRunning = false;
+  _modalResultShouldReload = shouldReload;
+  let text = '';
+
+  if (data.cancelled) {
+    hideModal();
+    if (shouldReload) loadDirectory(state.currentDir);
+    return;
+  } else if (data.error) {
+    dlgPhase.textContent = 'Failed';
+    text = data.error;
+  } else if (data.results) {
+    const failed = data.results.filter(r => !r.ok);
+    const skipped = data.results.filter(r => r.ok && r.skipped);
+    const succeeded = data.results.filter(r => r.ok && !r.skipped);
+    const label = data.type === 'convert' ? 'Converted' : 'Normalized';
+
+    dlgPhase.textContent = failed.length > 0 ? 'Completed with errors' : 'Complete';
+
+    const parts = [];
+    if (succeeded.length > 0) parts.push(`${label} ${succeeded.length} file${succeeded.length !== 1 ? 's' : ''}`);
+    if (skipped.length > 0) parts.push(`${skipped.length} skipped`);
+    if (failed.length > 0) parts.push(`${failed.length} failed`);
+    text = parts.join(', ') + '.';
+
+    if (failed.length > 0) {
+      text += '\n' + failed.map(f => `${f.name}: ${f.error}`).join('\n');
+    }
+  }
+
+  dlgFile.textContent = '';
+  dlgResult.textContent = text;
+  dlgResult.hidden = false;
+  dlgClose.textContent = 'Close';
+  dlgClose.disabled = false;
+  dlgClose.hidden = false;
+
+  if (shouldReload) loadDirectory(state.currentDir);
 }
 
 function updateProgress(data) {
@@ -119,22 +230,7 @@ async function pollJobStatus(jobType) {
       const data = await res.json();
 
       if (!data.active) {
-        hideModal();
-
-        if (data.error) {
-          alert('Operation failed: ' + data.error);
-        } else if (data.results) {
-          const failed = data.results.filter(r => !r.ok);
-          const total = data.results.length;
-          const label = data.type === 'convert' ? 'Converted' : 'Normalized';
-          if (failed.length > 0) {
-            alert(`${label} with ${failed.length} error(s):\n` + failed.map(f => f.name + ': ' + f.error).join('\n'));
-          } else {
-            alert(`${label} ${total} file(s).`);
-          }
-        }
-
-        loadDirectory(state.currentDir);
+        showModalResult(data, true);
         return;
       }
 
@@ -146,34 +242,39 @@ async function pollJobStatus(jobType) {
   }
 }
 
-async function startBatchJob(endpoint, type, confirmMsg) {
+async function startBatchJob(endpoint, type, confirmMsg, options = {}) {
   const fileCount = state.entryCounts.files;
+
+  const result = await showActionConfirm(confirmMsg, options);
+  if (!result.confirmed) return;
+
   if (fileCount === 0) {
-    alert('No audio files in this folder.');
+    showModal(type);
+    showModalResult({ error: 'No audio files in this folder.' });
     return;
   }
 
-  if (!confirm(confirmMsg)) return;
-
   stopPlayback();
   showModal(type);
+  showCancelButton();
   state.isApiLoading = true;
   updateProgress({ phase: 'backup', currentFile: '', current: 0, total: fileCount });
 
   try {
-    const res = await fetch(endpoint + '?dir=' + encodeURIComponent(state.currentDir), { method: 'POST' });
+    let url = endpoint + '?dir=' + encodeURIComponent(state.currentDir);
+    if (options.showKeepOption) url += '&keepOriginals=' + result.keepOriginals + '&backup=' + result.backupFiles;
+    else if (options.showBackupOption) url += '&backup=' + result.backupFiles;
+    const res = await fetch(url, { method: 'POST' });
     const data = await res.json();
 
     if (!res.ok) {
-      hideModal();
-      alert('Operation failed: ' + data.error);
+      showModalResult({ error: data.error || 'Operation failed' });
       return;
     }
 
     pollJobStatus(type);
   } catch (err) {
-    hideModal();
-    alert('Operation failed: ' + err.message);
+    showModalResult({ error: 'Operation failed: ' + err.message });
   }
 }
 
@@ -197,19 +298,80 @@ actionsMenu.addEventListener('click', (e) => {
 btnNormalize.addEventListener('click', () => {
   const count = state.entryCounts.files;
   startBatchJob('/api/normalize', 'normalize',
-    `Normalize levels for ${count} file${count !== 1 ? 's' : ''} in this folder?\n\n` +
-    `Originals will be backed up to a timestamped subfolder.\n\n` +
-    `This may take a while for many files.`
+    `Normalize levels for ${count} file${count !== 1 ? 's' : ''} in this folder?\n\nThis may take a while for many files.`,
+    { showBackupOption: true }
   );
 });
 
 // Convert to WAV button
 btnConvertWav.addEventListener('click', () => {
   startBatchJob('/api/convert-wav', 'convert',
-    `Convert all non-WAV files in this folder to WAV format?\n\n` +
-    `Originals will be backed up to a timestamped subfolder.\n` +
-    `Original non-WAV files will be removed after conversion.`
+    `Convert all non-WAV files in this folder to WAV format?\n\nIf keeping originals is disabled, they will be backed up to a timestamped subfolder before removal.`,
+    { showKeepOption: true, showBackupOption: true }
   );
+});
+
+// Convert to MP3 button
+btnConvertMp3.addEventListener('click', () => {
+  startBatchJob('/api/convert-mp3', 'convert',
+    `Convert all non-MP3 files in this folder to MP3 format (320k CBR)?\n\nIf keeping originals is disabled, they will be backed up to a timestamped subfolder before removal.`,
+    { showKeepOption: true, showBackupOption: true }
+  );
+});
+
+// Drag-and-drop folder navigation
+const dragOverlay = document.getElementById('drag-overlay');
+let dragCounter = 0;
+
+document.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragCounter++;
+  dragOverlay.classList.add('visible');
+});
+
+document.addEventListener('dragleave', () => {
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    dragOverlay.classList.remove('visible');
+  }
+});
+
+document.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  dragOverlay.classList.remove('visible');
+
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+
+  // file.path is Electron-specific — full OS path
+  const filePath = file.path;
+  if (!filePath) return;
+
+  // Check if it's a directory via webkitGetAsEntry, fall back to navigating directly
+  const entry = e.dataTransfer.items[0]?.webkitGetAsEntry?.();
+  if (entry && entry.isFile) return; // ignore file drops
+
+  loadDirectory(normalizePath(filePath));
+});
+
+// Open in Explorer/Finder button
+document.getElementById('btn-open-folder').addEventListener('click', async () => {
+  if (!state.currentDir) return;
+  try {
+    const res = await fetch('/api/open-folder?dir=' + encodeURIComponent(state.currentDir), { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      alert('Could not open folder: ' + data.error);
+    }
+  } catch (err) {
+    alert('Could not open folder: ' + err.message);
+  }
 });
 
 // Wire up all event handlers
@@ -253,6 +415,7 @@ async function init() {
     const statusData = await statusRes.json();
     if (statusData.active) {
       showModal(statusData.type);
+      showCancelButton();
       updateProgress(statusData);
       pollJobStatus(statusData.type);
     }

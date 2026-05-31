@@ -22,6 +22,13 @@
     </div>
     <span id="app-title">Home</span>
     <div id="breadcrumbs"></div>
+    <button id="btn-open-folder" title="Open current folder in Explorer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        <polyline points="12 12 16 12 16 8"/>
+        <line x1="16" y1="8" x2="11" y2="13"/>
+      </svg>
+    </button>
   </div>
 
   <!-- Filename search -->
@@ -66,7 +73,8 @@
       </button>
       <div class="dropdown-content" id="actions-menu">
         <button id="btn-normalize" title="Normalize audio levels for all files in this folder">Normalize Levels</button>
-        <button id="btn-convert-wav" title="Convert all files to WAV format">Convert to WAV</button>
+        <button id="btn-convert-wav" title="Convert all files to WAV format">Convert all to WAV</button>
+        <button id="btn-convert-mp3" title="Convert all files to MP3 format (320k CBR)">Convert all to MP3</button>
       </div>
     </div>
   </div>
@@ -134,6 +142,32 @@
         <div id="norm-progress-bar"></div>
       </div>
       <div id="norm-count"></div>
+      <div id="norm-result" hidden></div>
+      <button id="norm-close" hidden>Close</button>
+    </div>
+  </div>
+
+  <!-- Drag-and-drop overlay -->
+  <div id="drag-overlay">
+    <div id="drag-overlay-label">Open Folder</div>
+  </div>
+
+  <!-- Convert confirm dialog -->
+  <div id="convert-confirm-overlay">
+    <div id="convert-confirm-dialog">
+      <div id="convert-confirm-message"></div>
+      <label id="convert-keep-label">
+        <input type="checkbox" id="convert-keep-originals" checked>
+        Keep original files
+      </label>
+      <label id="convert-backup-label">
+        <input type="checkbox" id="convert-backup-files" checked>
+        Backup converted files
+      </label>
+      <div id="convert-confirm-buttons">
+        <button id="convert-confirm-cancel">Cancel</button>
+        <button id="convert-confirm-ok">Convert</button>
+      </div>
     </div>
   </div>
 
